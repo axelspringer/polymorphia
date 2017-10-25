@@ -161,7 +161,7 @@ public class Pojo {
 
 ## Release Notes
 
-Release notes are available [here](https://github.com/todo).
+Release notes are available [release_notes.md](release_notes.md).
 
 ```xml
 <dependency>
