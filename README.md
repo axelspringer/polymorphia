@@ -177,7 +177,7 @@ Release notes are available [here](https://github.com/todo).
 To build and test the driver:
 
 ```
-$ git clone https://github.com/todo.git
+$ git clone https://github.com/axelspringer/polymorphia
 $ cd polymorphia
 $ mvn clean install
 ```
