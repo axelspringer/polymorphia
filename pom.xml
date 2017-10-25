@@ -48,6 +48,7 @@
         <mongo-java-driver.version>3.4.0</mongo-java-driver.version>
         <slf4j.version>1.7.21</slf4j.version>
         <guava.version>21.0</guava.version>
+        <spring-boot.version>1.5.6.RELEASE</spring-boot.version>
     </properties>
 
     <dependencyManagement>
@@ -56,7 +57,7 @@
                 <!-- Import dependency management from Spring Boot for testing purposes-->
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
-                <version>1.5.6.RELEASE</version>
+                <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -180,6 +181,54 @@
                         <goals>
                             <goal>jar-no-fork</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>1.4.1</version>
+                <goals>
+                    <goal>enforce</goal>
+                </goals>
+                <configuration>
+                    <rules>
+                        <requireJavaVersion>
+                            <version>[1.7,)</version>
+                        </requireJavaVersion>
+                    </rules>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.0.0</version>
+                <configuration>
+                    <usedDependencies>
+                        <usedDependency>org.springframework.boot:spring-boot-starter-test</usedDependency>
+                        <usedDependency>org.springframework.boot:spring-boot-starter</usedDependency>
+                        <usedDependency>de.flapdoodle.embed:de.flapdoodle.embed.mongo</usedDependency>
+                    </usedDependencies>
+                    <ignoredUsedUndeclaredDependencies>
+                        <ignoredUnusedDeclaredDependency>org.springframework:spring-context</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>org.springframework:spring-beans</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-test</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>org.springframework:spring-test</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>org.hamcrest:hamcrest-core</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-autoconfigure</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>org.hamcrest:hamcrest-library</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>junit:junit</ignoredUnusedDeclaredDependency>
+                    </ignoredUsedUndeclaredDependencies>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>analyze</id>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                        <configuration>
+                            <failOnWarning>true</failOnWarning>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
