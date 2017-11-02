@@ -18,7 +18,13 @@ public interface ReflectionCodec<T> extends TypeCodec<T> {
 
     void encodeFields(BsonWriter writer, T instance, EncoderContext encoderContext);
 
-    void postDecode(T instance);
+    default void postDecode(T instance) {
+        // do nothing
+    }
+
+    default void preEncode(T instance) {
+        // solely meant to not introduce braking changes
+    }
 
     void initializeDefaults(T instance);
 

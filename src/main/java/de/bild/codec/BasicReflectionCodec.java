@@ -2,6 +2,7 @@ package de.bild.codec;
 
 import de.bild.codec.annotations.Id;
 import de.bild.codec.annotations.PostLoad;
+import de.bild.codec.annotations.PreSave;
 import de.bild.codec.annotations.Transient;
 import org.bson.BsonReader;
 import org.bson.BsonType;
@@ -25,6 +26,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
      */
     final Map<String, MappedField> persistenceFields = new LinkedHashMap<>();
     final List<Method> postLoadMethods = new ArrayList<>();
+    final List<Method> preSaveMethods = new ArrayList<>();
     IdGenerator idGenerator;
     boolean isCollectible;
 
@@ -63,6 +65,8 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
             Method method = methodTypePair.getMethod();
             if (method.isAnnotationPresent(PostLoad.class)) {
                 postLoadMethods.add(method);
+            } else if (method.isAnnotationPresent(PreSave.class)) {
+                preSaveMethods.add(method);
             }
         }
     }
@@ -147,8 +151,20 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
 
     @Override
     public void encodeFields(BsonWriter writer, T instance, EncoderContext encoderContext) {
+        preEncode(instance);
         for (MappedField persistenceField : persistenceFields.values()) {
             persistenceField.encode(writer, instance, encoderContext);
+        }
+    }
+
+    @Override
+    public void preEncode(T instance) {
+        for (Method preSaveMethod : preSaveMethods) {
+            try {
+                preSaveMethod.invoke(instance);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                LOGGER.warn("@PreSave method {} could not be called.", preSaveMethod, e);
+            }
         }
     }
 

@@ -8,7 +8,7 @@ import java.lang.annotation.*;
 @Target({ElementType.METHOD})
 /**
  * Annotation to be used at POJO methods.
- * These methods will be invoked after a POJO was decoded.
+ * These methods will be invoked before a POJO will be encoded and written to the database
  */
-public @interface PostLoad {
+public @interface PreSave {
 }
