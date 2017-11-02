@@ -71,30 +71,6 @@ public class PreSaveHookTest {
         }
     }
 
-
-    static class Base<T> {
-        T anyType;
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            Base<?> base = (Base<?>) o;
-
-            return anyType != null ? anyType.equals(base.anyType) : base.anyType == null;
-        }
-
-        @Override
-        public int hashCode() {
-            return anyType != null ? anyType.hashCode() : 0;
-        }
-    }
-
-    static class IntegerType extends Base<Integer> {
-
-    }
-
     @Test
     public void basicTest() {
         BasePojo basePojo = new BasePojo();
@@ -108,6 +84,7 @@ public class PreSaveHookTest {
         LOGGER.info("The encoded json looks like: {}", stringWriter);
 
         BasePojo readBasePojo = primitivePojoCodec.decode(new JsonReader(stringWriter.toString()), DecoderContext.builder().build());
+        // assert that the modified version was actually written to the database
         Assert.assertEquals(basePojo, readBasePojo);
         Assert.assertEquals(MODIFIED_STRING, readBasePojo.aString);
     }
