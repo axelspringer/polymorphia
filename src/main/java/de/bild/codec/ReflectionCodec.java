@@ -20,6 +20,8 @@ public interface ReflectionCodec<T> extends TypeCodec<T> {
 
     void postDecode(T instance);
 
+    void preEncode(T instance);
+
     void initializeDefaults(T instance);
 
     MappedField getMappedField(String mappedFieldName);
