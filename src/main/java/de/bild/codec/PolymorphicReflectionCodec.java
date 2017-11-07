@@ -42,10 +42,6 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
                 ReflectionCodec codecFor = pojoContext.resolve(validType, typeCodecRegistry);
 
-                if (codecFor == null) {
-                    codecFor = new BasicReflectionCodec<>(validType, typeCodecRegistry, allDiscriminatorKeys);
-                }
-
                 if (isFallBack) {
                     if (fallBackCodec != null) {
                         LOGGER.error("It is not allowed to declare more han one class within hierarchy as fallback. {} found already {}", clazz, codecFor.getEncoderClass());
@@ -86,6 +82,20 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
                 mainDiscriminators.put(clazz, mainDiscriminator);
             }
         }
+
+        //check for properties within classes that are named exacly like one of the used main discrimimnator keys
+        for (ReflectionCodec<T> usedCodec : classToCodec.values()) {
+            for (String allDiscriminatorKey : allDiscriminatorKeys) {
+                MappedField mappedField = usedCodec.getMappedField(allDiscriminatorKey);
+                if (mappedField != null) {
+                    LOGGER.error("A field {} within {} is named like one of the discriminator keys {}", mappedField.getMappedFieldName(), usedCodec.getEncoderClass(), allDiscriminatorKeys);
+                    throw new IllegalArgumentException("A field " + mappedField.getMappedFieldName() + " within " + usedCodec.getEncoderClass() + " is named like one of the discriminator keys " + allDiscriminatorKeys);
+
+                }
+            }
+        }
+
+
         this.isCollectible = isAnyCodecCollectible;
 
         LOGGER.debug("Type {} -> Found the following matching types {}", type, discriminatorToCodec);
@@ -111,7 +121,8 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
                 discriminator = reader.readString();
                 codec = getCodecForDiscriminator(discriminator);
                 if (codec != null) {
-                    String discriminatorKeyForClass = getDiscriminatorKeyForClass(codec.getEncoderClass());
+                    //now check that the codec found actually has the correct
+                    String discriminatorKeyForClass = discriminatorKeys.get(codec.getEncoderClass());
                     if (fieldName.equals(discriminatorKeyForClass)) {
                         break;
                     } else {
@@ -154,8 +165,8 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
         ReflectionCodec<T> codecForValue = getCodecForClass(value.getClass());
         if (codecForValue != null) {
             writer.writeStartDocument();
-            writer.writeName(discriminatorKeys.get(value.getClass()));
-            writer.writeString(mainDiscriminators.get(value.getClass()));
+            writer.writeName(discriminatorKeys.get(codecForValue.getEncoderClass()));
+            writer.writeString(mainDiscriminators.get(codecForValue.getEncoderClass()));
             encodeType(writer, value, encoderContext, codecForValue);
             writer.writeEndDocument();
         } else {

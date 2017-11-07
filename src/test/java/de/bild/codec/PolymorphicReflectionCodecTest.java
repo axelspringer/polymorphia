@@ -30,7 +30,22 @@ public class PolymorphicReflectionCodecTest {
     @Autowired
     private MongoClient mongoClient;
 
+    static class FirstClassInHierarchy {
+        @Id(collectible = true)
+        ObjectId id;
 
+        int property;
+    }
+
+    @Discriminator("SubClassDiscriminator")
+    static class SubClass extends FirstClassInHierarchy {
+        String subClassProperty;
+    }
+
+    @DiscriminatorFallback
+    static class AnotherSubClass extends SubClass {
+
+    }
     @Test
     public void testFallback() {
         PojoCodecProvider pojoCodecProvider = PojoCodecProvider.builder().
@@ -73,25 +88,32 @@ public class PolymorphicReflectionCodecTest {
         first = documents.find(Filters.eq("_id", pojo.id)).first();
         assertNotNull(first);
         assertTrue(first instanceof AnotherSubClass);
-
-
     }
 
 
-    static class FirstClassInHierarchy {
-        @Id(collectible = true)
-        ObjectId id;
 
-        int property;
+    public interface Shape {
     }
 
-    @Discriminator("SubClassDiscriminator")
-    static class SubClass extends FirstClassInHierarchy {
-        String subClassProperty;
+
+    public static class ClassWithReservedFieldName implements Shape {
+        String _t;
     }
 
-    @DiscriminatorFallback
-    static class AnotherSubClass extends SubClass {
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testFieldNameLikeDiscriminatorKey() {
+        PojoCodecProvider pojoCodecProvider = PojoCodecProvider.builder().
+                register(Shape.class).
+                register(ClassWithReservedFieldName.class).
+                build();
+
+        assertNotNull(pojoCodecProvider);
+        CodecRegistry pojoCodecRegistry = fromRegistries(fromProviders(pojoCodecProvider), MongoClient.getDefaultCodecRegistry());
+        MongoCollection<Shape> documents = mongoClient.getDatabase(DB_NAME)
+                .getCollection("documents")
+                .withCodecRegistry(pojoCodecRegistry)
+                .withDocumentClass(Shape.class);
+        documents.insertOne(new ClassWithReservedFieldName());
     }
 }

@@ -274,6 +274,9 @@ public abstract class ReflectionHelper {
      * @return The raw class of the given type or if type is a class, the class itself will be returned
      */
     public static Class extractRawClass(Type type) {
+        if (type == null) {
+            return null;
+        }
         return TypeUtils.getRawType(type, null);
     }
 }

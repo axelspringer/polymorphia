@@ -47,9 +47,9 @@ public class PojoContext {
     /**
      * Calculates and returns a codec for the given type, null otherwise
      *
-     * @param type type for which a codec is requested
+     * @param type              type for which a codec is requested
      * @param typeCodecRegistry codec registry that can handle any type including parameterizd types, generic arrays, etc
-     * @param <T> the value type
+     * @param <T>               the value type
      * @return the codec responsible for the given type or null
      */
     public synchronized <T> Codec<T> getCodec(Type type, TypeCodecRegistry typeCodecRegistry) {
@@ -76,7 +76,8 @@ public class PojoContext {
 
     /**
      * Iterates over the list of codecResolvers and returns a ReflectionCodec if match is found.
-     * @param type the value type
+     *
+     * @param type              the value type
      * @param typeCodecRegistry codec registry that can handle any type including parameterizd types, generic arrays, etc
      * @return ReflectionCodec if responsible resolver si found
      */
@@ -88,7 +89,8 @@ public class PojoContext {
                 return codec;
             }
         }
-        return null;
+        // fallback is BasicReflectionCodec
+        return new BasicReflectionCodec(type, typeCodecRegistry);
     }
 
     /**
@@ -144,12 +146,12 @@ public class PojoContext {
         /**
          * now try pojo codec
          */
-        Set<Type> validTypesForType = getValidTypesForType(type);
+        Set<Type> validTypesForType = typesModel.getAssignableTypesWithinClassHierarchy(type);
 
         if (validTypesForType == null || validTypesForType.isEmpty()) {
             LOGGER.debug("Could not find concrete implementation for type {}. Maybe another codec is able to handle te class?!", type);
             return null;
-        } else if (isPolymorphic(validTypesForType)) {
+        } else if (validTypesForType.size() > 1 || isPolymorphic(type)) {
             LOGGER.debug("Creating polymorphic codec for type {} with valid types {}", type, validTypesForType);
             return new PolymorphicReflectionCodec<>(type, validTypesForType, typeCodecRegistry, this);
         } else {
@@ -166,38 +168,32 @@ public class PojoContext {
 
 
     /**
-     * @param validTypes
-     * @return true, if validTypes reflects a polymorphic type structure
+     *
+     * @param type to be checked for polymorphic structure
+     * @return true, if type represents a polymorphic type structure
      */
-    private boolean isPolymorphic(Set<Type> validTypes) {
-        if (validTypes != null) {
-            if (validTypes.size() > 1) {
+    private boolean isPolymorphic(Type type) {
+        Class clazz = ReflectionHelper.extractRawClass(type);
+        return clazz.getAnnotation(Polymorphic.class) != null ||    // marked as polymorphic (@inherited annotation)
+                clazz.getDeclaredAnnotation(Discriminator.class) != null || // explicit discriminator annotation (non @inherited)
+                isClassPartOfPolymorphicStructureWithinTypesModel(clazz);
+    }
+
+    private boolean isClassPartOfPolymorphicStructureWithinTypesModel(Class clazz) {
+        Class superclass = clazz.getSuperclass();
+        // first check if superclass is part of typesModel, if so return true
+        if (typesModel.getClassHierarchyNodeForType(superclass) != null) {
+            return true;
+        }
+        // now check if any interface is part of the typesModel, if so, return true
+        for (Class anInterface : clazz.getInterfaces()) {
+            if (typesModel.getClassHierarchyNodeForType(anInterface) != null) {
                 return true;
-            } else if (!validTypes.isEmpty()) {
-                Class clazz = ReflectionHelper.extractRawClass(validTypes.iterator().next());
-                return hasNonAbstractSuperClass(clazz) || clazz.getAnnotation(Polymorphic.class) != null || clazz.getDeclaredAnnotation(Discriminator.class) != null;
             }
         }
         return false;
     }
 
-    /**
-     * @param clazz
-     * @return true if the type is part of a class hierarchy or
-     * alternatively if the annotation @Polymorphic is found in the class hierarchy
-     */
-    private boolean hasNonAbstractSuperClass(Class clazz) {
-        //if superclass of given type is present in all known types, the class is considered to be polymorphic
-        Class superclass = clazz.getSuperclass();
-        return superclass != null && !Modifier.isAbstract(superclass.getModifiers()) && typesModel.getClassHierarchyNodeForType(superclass) != null;
-
-    }
-
-
-    private Set<Type> getValidTypesForType(Type type) {
-        Set<Type> validTypes = typesModel.getAssignableTypesWithinClassHierarchy(type);
-        return validTypes;
-    }
 
     /**
      * First the pojoContext is requested to return a valid codec, if this fails, the mongo codecregistry will be asked

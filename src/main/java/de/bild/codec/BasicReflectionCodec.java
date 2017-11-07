@@ -76,15 +76,6 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
         return persistenceFields;
     }
 
-    public BasicReflectionCodec(Type type, TypeCodecRegistry typeCodecRegistry, Set<String> allDiscriminatorKeys) {
-        this(type, typeCodecRegistry);
-        for (MappedField persistenceField : persistenceFields.values()) {
-            if (allDiscriminatorKeys.contains(persistenceField.getMappedFieldName())) {
-                LOGGER.error("A field {} within class {} is named like one of the discriminator keys {}", persistenceField.getMappedFieldName(), encoderClass, allDiscriminatorKeys);
-                throw new IllegalArgumentException("A field " + persistenceField.getMappedFieldName() + " within class " + encoderClass + " is named like one of the discriminator keys" + allDiscriminatorKeys);
-            }
-        }
-    }
 
     protected boolean isIgnorable(final Field field) {
         return field.isAnnotationPresent(Transient.class)

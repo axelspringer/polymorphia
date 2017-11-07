@@ -173,11 +173,12 @@ public class TypesModel {
 
     /**
      * @param type a type
-     * @return the type hierarchy for the given type
+     * @return the type hierarchy (lower bound within types model bounds) for the given type
      */
     protected ClassHierarchyNode getClassHierarchyNodeForType(Type type) {
         ClassHierarchyNode classHierarchyNode = null;
         Class<?> currentClass = ReflectionHelper.extractRawClass(type);
+        // walk up class hierarchy until a class within the class model is found
         while (classHierarchyNode == null && currentClass != null && !Object.class.equals(currentClass)) {
             classHierarchyNode = classHierarchy.get(currentClass);
             currentClass = currentClass.getSuperclass();
