@@ -32,7 +32,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
         boolean isAnyCodecCollectible = false;
 
         for (Type validType : validTypes) {
-            Class<?> clazz = AbstractTypeCodec.extractClass(validType);
+            Class<T> clazz = AbstractTypeCodec.extractClass(validType);
             if (!clazz.isInterface()) {
                 String discriminatorKey = getDiscriminatorKeyForClass(clazz);
                 boolean isFallBack = clazz.getDeclaredAnnotation(DiscriminatorFallback.class) != null;
@@ -162,13 +162,17 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
     @Override
     public void encode(BsonWriter writer, T value, EncoderContext encoderContext) {
+        writer.writeStartDocument();
+        encodeFields(writer, value, encoderContext);
+        writer.writeEndDocument();
+    }
+
+    public void encodeFields(BsonWriter writer, T value, EncoderContext encoderContext) {
         ReflectionCodec<T> codecForValue = getCodecForClass(value.getClass());
         if (codecForValue != null) {
-            writer.writeStartDocument();
             writer.writeName(discriminatorKeys.get(codecForValue.getEncoderClass()));
             writer.writeString(mainDiscriminators.get(codecForValue.getEncoderClass()));
             encodeType(writer, value, encoderContext, codecForValue);
-            writer.writeEndDocument();
         } else {
             LOGGER.warn("The value to be encoded has the wrong type {}. This codec can only handle {}", value.getClass(), discriminatorToCodec);
         }
@@ -185,10 +189,11 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
     /**
      * Walks up class hierarchy until a registered codec (in the context of registered model classes) is found
+     *
      * @return a codec responsible for a valid class within the class hierarchy
      */
-    private ReflectionCodec<T> getCodecForClass(Class<?> clazz) {
-        if (Object.class.equals(clazz)) {
+    public ReflectionCodec<T> getCodecForClass(Class<?> clazz) {
+        if (clazz == null || Object.class.equals(clazz)) {
             return null;
         }
         ReflectionCodec<T> codec = classToCodec.get(clazz);

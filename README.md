@@ -20,7 +20,7 @@ Note: There are plenty of code examples to be found in the tests.
 Attention: In order to scan packages you need to provide either [spring-core](https://github.com/spring-projects/spring-framework) library or [org.reflections.reflections](https://github.com/ronmamo/reflections) library in the class path.
 Alternatively you could register all your POJO classes one by one!
 
-Instantiate the POJOCodecProvider and add it to the CodecRegistry.
+Instantiate the [PojoCodecProvider](src/main/java/de/bild/codec/PojoCodecProvider.java) and add it to the CodecRegistry.
 Example: [PolymorphicReflectionCodecTest](src/test/java/de/bild/codec/PolymorphicReflectionCodecTest.java)
 
 One motivation to start this project was the missing feature of existing Pojo-codec solutions to easily model polymorphic structures and write/read those to/from the database (e.g.[https://github.com/mongodb/morphia/issues/22](https://github.com/mongodb/morphia/issues/22))
