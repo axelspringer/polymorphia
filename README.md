@@ -23,6 +23,39 @@ Alternatively you could register all your POJO classes one by one!
 Instantiate the POJOCodecProvider and add it to the CodecRegistry.
 Example: [PolymorphicReflectionCodecTest](src/test/java/de/bild/codec/PolymorphicReflectionCodecTest.java)
 
+One motivation to start this project was the missing feature of existing Pojo-codec solutions to easily model polymorphic structures and write/read those to/from the database (e.g.[https://github.com/mongodb/morphia/issues/22](https://github.com/mongodb/morphia/issues/22))
+
+Simple example @see example [PolymorphicTest](src/test/java/de/bild/codec/PolymorphicTest.java)
+```java
+        public interface Shape {
+        }
+    
+        public class Circle implements Shape {
+            String name;
+        }
+    
+        public class Square implements Shape  {
+            int foo;
+        }
+        
+        public static void main() {
+            com.mongodb.client.MongoCollection<Shape> collection = database.getCollection("shapes").withDocumentClass(Shape.class);
+            collection.insertMany(Arrays.asList(new Circle(), new Square(), new Square(), new Circle()));
+            
+            for (Shape shape : collection.find()) {
+                System.out.println("Shape : " + shape.getClass().getSimpleName());
+            }
+            
+            // would print
+            // Shape : Circle
+            // Shape : Square
+            // Shape : Square
+            // Shape : Circle
+        }
+        
+```
+
+More complex example (including use of generics)
 ```java
 public class BasePojo<T> {
     T someValue;
@@ -59,7 +92,14 @@ In that case enum will be encoded with their names. If you have special needs fo
 
 ## Polymorphic hierarchies
 
-The following code examples describe how you can control discriminator keys and discriminator values. These are needed to enable the codec to morph into the correct polymorphic classes.
+The following code examples describe how you can control discriminator keys and discriminator values. These are needed to enable the codec to morph into the correct polymorphic classes.  
+Please note that there is absolutely no need to override the default behaviour.  
+If your class structures are not annotated with [@Discriminator](src/main/java/de/bild/codec/annotations/Discriminator.java) or [@DiscriminatorKey](src/main/java/de/bild/codec/annotations/DiscriminatorKey.java) the default behaviour is as follows:
+* [@Discriminator](src/main/java/de/bild/codec/annotations/Discriminator.java) is the simple class name
+* [@DiscriminatorKey](src/main/java/de/bild/codec/annotations/DiscriminatorKey.java) is "_t"
+* **ATTENTION: Discriminator-information is only persisted in teh database, if polymorphic structures are detected**
+* to force persisting discriminator information to the database either add [@Polymorphic](src/main/java/de/bild/codec/annotations/Polymorphic.java) to your class structure or you annotate a class with [@Discriminator](src/main/java/de/bild/codec/annotations/Discriminator.java)
+
 ```java
 public interface Base {
 }
