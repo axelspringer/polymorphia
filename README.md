@@ -97,7 +97,7 @@ Please note that there is absolutely no need to override the default behaviour.
 If your class structures are not annotated with [@Discriminator](src/main/java/de/bild/codec/annotations/Discriminator.java) or [@DiscriminatorKey](src/main/java/de/bild/codec/annotations/DiscriminatorKey.java) the default behaviour is as follows:
 * [@Discriminator](src/main/java/de/bild/codec/annotations/Discriminator.java) is the simple class name
 * [@DiscriminatorKey](src/main/java/de/bild/codec/annotations/DiscriminatorKey.java) is "_t"
-* **ATTENTION: Discriminator-information is only persisted in teh database, if polymorphic structures are detected**
+* **ATTENTION: Discriminator-information is only persisted in the database, if polymorphic structures are detected**
 * to force persisting discriminator information to the database either add [@Polymorphic](src/main/java/de/bild/codec/annotations/Polymorphic.java) to your class structure or you annotate a class with [@Discriminator](src/main/java/de/bild/codec/annotations/Discriminator.java)
 
 ```java
