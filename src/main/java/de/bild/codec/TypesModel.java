@@ -58,7 +58,7 @@ public class TypesModel {
                 if (matcher.matches()) {
                     return classLoader.loadClass(matcher.group(1));
                 }
-            } catch (Exception e) {
+            } catch (NoClassDefFoundError | Exception e) {
                 LOGGER.warn("Could not load class {}", resourceName, e);
             }
             return null;
@@ -281,6 +281,9 @@ public class TypesModel {
         // now we need to downgrade type to clazz
         if (clazz.getTypeParameters().length > 0) {
             //if clazz has type parameters, we need to figure out the correct types
+            // TODO encoding with specific type arguments may work, but decoding into
+            // TODO the type (that is within the group of registered classes) would loose information, so maybe
+            // we should not try to infer the type arguments?
             return TypeUtils.parameterize(clazz, TypeUtils.getTypeArguments(type, clazz));
         }
         else {
