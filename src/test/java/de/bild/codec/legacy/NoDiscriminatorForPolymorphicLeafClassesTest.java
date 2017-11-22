@@ -79,17 +79,22 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
         }
     }
 
-    public static class DocumentResult extends BaseResult<ObjectId> {
+    public static abstract class AbstractDocumentResult extends BaseResult<ObjectId> {
         ObjectId cmsId;
 
         @Override
         public ObjectId getId() {
             return cmsId;
         }
+    }
+
+    public static class DocumentResult extends AbstractDocumentResult {
 
     }
 
-    public static class UrlResult extends BaseResult<String> {
+
+
+        public static class UrlResult extends BaseResult<String> {
         String url;
 
         private UrlResult() {
@@ -103,13 +108,13 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
     }
 
     static class DocumentContainer {
-        private Set<DocumentResult> documents = new LinkedHashSet<>();
+        private Set<AbstractDocumentResult> documents = new LinkedHashSet<>();
         private Set<UrlResult> urls = new LinkedHashSet<>();
 
         private DocumentContainer() {
         }
 
-        public DocumentContainer(Set<DocumentResult> documents, Set<UrlResult> urls) {
+        public DocumentContainer(Set<AbstractDocumentResult> documents, Set<UrlResult> urls) {
             this.documents = documents;
             this.urls = urls;
         }
@@ -148,8 +153,8 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
 
         Assert.assertNotNull(documentContainer);
         Assert.assertEquals(documentContainer.documents.size(), 2);
-        for (DocumentResult document : documentContainer.documents) {
-            MatcherAssert.assertThat(document, IsInstanceOf.instanceOf(DocumentResult.class));
+        for (AbstractDocumentResult document : documentContainer.documents) {
+            MatcherAssert.assertThat(document, IsInstanceOf.instanceOf(AbstractDocumentResult.class));
         }
         for (UrlResult url : documentContainer.urls) {
             MatcherAssert.assertThat(url, IsInstanceOf.instanceOf(UrlResult.class));

@@ -12,6 +12,7 @@ import org.bson.codecs.EncoderContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.*;
 
@@ -33,7 +34,8 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
         for (Type validType : validTypes) {
             Class<T> clazz = AbstractTypeCodec.extractClass(validType);
-            if (!clazz.isInterface()) {
+            // ignore interfaces and also ignore abstract classes
+            if (!clazz.isInterface() && ! Modifier.isAbstract(clazz.getModifiers())) {
                 String discriminatorKey = getDiscriminatorKeyForClass(clazz);
                 boolean isFallBack = clazz.getDeclaredAnnotation(DiscriminatorFallback.class) != null;
 
