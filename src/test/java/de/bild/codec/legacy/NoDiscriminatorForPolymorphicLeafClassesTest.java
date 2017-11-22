@@ -119,7 +119,7 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
     private static final String LEGACY_BSON =
             "{\n" +
                     "    \"documents\" : [{\n" +
-                    "     \"_t\" :  \"UrlResulst\"" +
+                    "     \"_t\" :  \"SomeIncorrectType\"" +
                     "        \"cmsId\" : {\n" +
                     "          \"$oid\" : \"57beb711ed91159e1e3857e4\"\n" +
                     "        },\n" +
