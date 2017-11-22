@@ -140,17 +140,28 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
         reader.reset();
 
-        // try fallback
+        // try fallback and legacy handling
         if (codec == null) {
+            if (discriminator != null) {
+                LOGGER.warn("At least one valid discriminator {} was found in database, but no matching codec found at all.", discriminator);
+                // todo not sure if it is safe to proceed here and assume something about the correct destination entitiy...better skip or die?
+            }
             LOGGER.debug("No discriminator found in db for entity. Trying fallback. Fallback is {}", fallBackCodec);
             codec = fallBackCodec;
+            if (codec == null) {
+                LOGGER.debug("FallbackCodec is null. Still no matching codec found for discriminator {} within discriminatorToCodec {}", discriminator, discriminatorToCodec);
+                if (classToCodec.values().size() == 1) {
+                    codec = classToCodec.values().iterator().next();
+                }
+                else {
+                    LOGGER.warn("Legacy handling to resolve entities in db without discriminator failed as there are (now?) more than one codecs available {}. One option is to use @DiscriminatrFallback at the legacy class or to add discriminators to the entities within the database. For now, skipping value.", classToCodec);
+                    // TODO is skipping the right way to handle this? This might lead to lost data if a read object is rewritten to the database again...
+                    reader.skipValue();
+                    return null;
+                }
+            }
         }
 
-        if (codec == null) {
-            LOGGER.warn("No matching codec found for discriminator {} within discriminatorToCodec {}", discriminator, discriminatorToCodec);
-            reader.skipValue();
-            return null;
-        }
 
         return decodeWithType(reader, decoderContext, codec);
     }
