@@ -154,7 +154,7 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
         Assert.assertNotNull(documentContainer);
         Assert.assertEquals(documentContainer.documents.size(), 2);
         for (AbstractDocumentResult document : documentContainer.documents) {
-            MatcherAssert.assertThat(document, IsInstanceOf.instanceOf(AbstractDocumentResult.class));
+            MatcherAssert.assertThat(document, IsInstanceOf.instanceOf(DocumentResult.class));
         }
         for (UrlResult url : documentContainer.urls) {
             MatcherAssert.assertThat(url, IsInstanceOf.instanceOf(UrlResult.class));
