@@ -1,6 +1,9 @@
 Release Notes
 =======
 
+##1.6.0
+return null for unresolvable discriminator values 
+
 ##1.5.0
 Abstract classes have been removed from indexing within PolymorphicReflectionCodec
 

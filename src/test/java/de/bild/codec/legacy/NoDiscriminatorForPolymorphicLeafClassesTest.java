@@ -153,9 +153,10 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
 
         Assert.assertNotNull(documentContainer);
         Assert.assertEquals(documentContainer.documents.size(), 2);
-        for (AbstractDocumentResult document : documentContainer.documents) {
-            MatcherAssert.assertThat(document, IsInstanceOf.instanceOf(DocumentResult.class));
-        }
+        List<AbstractDocumentResult> documents = new ArrayList<>(documentContainer.documents);
+        Assert.assertNull(documents.get(0)); // due to wrong discriminator key (after upgrade to mongo 3.6 an exception should be thrown in PolymorphicReflectionCodec)
+        MatcherAssert.assertThat(documents.get(1), IsInstanceOf.instanceOf(DocumentResult.class));
+
         for (UrlResult url : documentContainer.urls) {
             MatcherAssert.assertThat(url, IsInstanceOf.instanceOf(UrlResult.class));
         }

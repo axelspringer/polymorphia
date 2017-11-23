@@ -146,7 +146,8 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
         if (codec == null) {
             if (discriminator != null) {
                 LOGGER.warn("At least one valid discriminator {} was found in database, but no matching codec found at all.", discriminator);
-                // todo not sure if it is safe to proceed here and assume something about the correct destination entitiy...better skip or die?
+                reader.skipValue();
+                return null; // todo: when switching to mongo db 3.6 an exception should be thrown instead of returning null
             }
             LOGGER.debug("No discriminator found in db for entity. Trying fallback. Fallback is {}", fallBackCodec);
             codec = fallBackCodec;
@@ -154,12 +155,13 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
                 LOGGER.debug("FallbackCodec is null. Still no matching codec found for discriminator {} within discriminatorToCodec {}", discriminator, discriminatorToCodec);
                 if (classToCodec.values().size() == 1) {
                     codec = classToCodec.values().iterator().next();
+                    LOGGER.debug("Found single possible codec {} for type {}", codec, getEncoderClass());
                 }
                 else {
                     LOGGER.warn("Legacy handling to resolve entities in db without discriminator failed as there are (now?) more than one codecs available {}. One option is to use @DiscriminatrFallback at the legacy class or to add discriminators to the entities within the database. For now, skipping value.", classToCodec);
                     // TODO is skipping the right way to handle this? This might lead to lost data if a read object is rewritten to the database again...
                     reader.skipValue();
-                    return null;
+                    return null;// todo: when switching to mongo db 3.6 an exception should be thrown instead of returning null
                 }
             }
         }

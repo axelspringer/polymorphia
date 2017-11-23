@@ -71,7 +71,7 @@ public abstract class AbstractTypeCodec<T> implements TypeCodec<T> {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("AbstractTypeCodec{");
+        final StringBuilder sb = new StringBuilder(getClass().getSimpleName() + "{");
         sb.append("typeCodecRegistry=").append(typeCodecRegistry);
         sb.append(", encoderClass=").append(encoderClass);
         sb.append(", defaultConstructor=").append(defaultConstructor);
