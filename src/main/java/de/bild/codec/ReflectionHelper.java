@@ -113,7 +113,13 @@ public abstract class ReflectionHelper {
             if (realTypeMap == null) {
                 return ((TypeVariable) type).getBounds()[0];
             }
-            return realTypeMap.get(type.getTypeName());
+
+            Type typeFoundInMap = realTypeMap.get(type.getTypeName());
+            if (typeFoundInMap != null) {
+                return typeFoundInMap;
+            }
+
+            return type;
         }
         return type;
     }

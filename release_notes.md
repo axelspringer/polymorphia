@@ -1,6 +1,10 @@
 Release Notes
 =======
 
+##1.6.1
+bug fix for [https://github.com/axelspringer/polymorphia/issues/4](https://github.com/axelspringer/polymorphia/issues/4) 
+
+
 ##1.6.0
 return null for unresolvable discriminator values 
 
