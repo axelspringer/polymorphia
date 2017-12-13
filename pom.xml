@@ -6,7 +6,7 @@
 
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>1.6.1</version>
+    <version>1.6.2</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
 
@@ -119,6 +119,11 @@
         <dependency>
             <groupId>de.flapdoodle.embed</groupId>
             <artifactId>de.flapdoodle.embed.mongo</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

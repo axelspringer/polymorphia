@@ -1,6 +1,11 @@
 Release Notes
 =======
 
+##1.6.2
+bug fix for [https://github.com/axelspringer/polymorphia/issues/5](https://github.com/axelspringer/polymorphia/issues/5) 
+
+
+
 ##1.6.1
 bug fix for [https://github.com/axelspringer/polymorphia/issues/4](https://github.com/axelspringer/polymorphia/issues/4) 
 

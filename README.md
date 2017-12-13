@@ -218,7 +218,7 @@ Release notes are available [release_notes.md](release_notes.md).
 <dependency>
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>1.6.1</version>
+    <version>1.6.2</version>
 </dependency>
 ```
 

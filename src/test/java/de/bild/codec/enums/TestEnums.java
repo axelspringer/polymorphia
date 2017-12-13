@@ -1,16 +1,22 @@
 package de.bild.codec.enums;
 
 import com.mongodb.MongoClient;
-import de.bild.codec.BaseTest;
 import de.bild.codec.EnumCodecProvider;
 import de.bild.codec.PojoCodecProvider;
-import de.bild.codec.enums.model.Displayable;
-import de.bild.codec.enums.model.MyEnumType;
+import de.bild.codec.enums.model.EnumA;
+import de.bild.codec.enums.model.EnumB;
+import de.bild.codec.enums.model.LovelyDisplayable;
 import de.bild.codec.enums.model.Pojo;
 import org.bson.codecs.Codec;
+import org.bson.codecs.DecoderContext;
+import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
-import org.junit.Ignore;
+import org.bson.json.JsonReader;
+import org.bson.json.JsonWriter;
+import org.bson.json.JsonWriterSettings;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -20,6 +26,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import java.io.StringWriter;
+import java.util.Arrays;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = TestEnums.class)
@@ -32,7 +41,7 @@ public class TestEnums {
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
                     CodecRegistries.fromProviders(
-                            //new EnumCodecProvider(),
+                            new EnumCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register("de.bild.codec.enums.model")
                                     .build()
@@ -45,14 +54,26 @@ public class TestEnums {
     @Autowired
     CodecRegistry codecRegistry;
 
-
-    /**
-     * TODO The following test should instantiate a codec for given interface
-     * Interestingly the interface is being implemented by  enums
-     */
     @Test
-    @Ignore // remove me!
     public void testEnums() {
-        Codec<Displayable> pojoCodec = codecRegistry.get(Displayable.class);
+        Codec<Pojo> pojoCodec = codecRegistry.get(Pojo.class);
+
+        LovelyDisplayable lovelyDisplayable = LovelyDisplayable.builder().identityProperty("foo").build();
+
+        Pojo pojo = Pojo.builder()
+                .simpleEnumProperty(EnumA.TYPE1)
+                .displayable(Arrays.asList(EnumB.TYPE1, EnumA.TYPE1, EnumA.TYPE3, lovelyDisplayable))
+                .build();
+
+        StringWriter stringWriter = new StringWriter();
+        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(true));
+        pojoCodec.encode(writer, pojo, EncoderContext.builder().build());
+        System.out.println(stringWriter.toString());
+
+        Pojo decodedPojo = pojoCodec.decode(new JsonReader(stringWriter.toString()), DecoderContext.builder().build());
+
+        MatcherAssert.assertThat(decodedPojo.getDisplayable(),
+                IsIterableContainingInOrder.contains(EnumB.TYPE1, EnumA.TYPE1, EnumA.TYPE3, lovelyDisplayable));
+
     }
  }

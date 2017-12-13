@@ -6,6 +6,7 @@ import de.bild.codec.annotations.Polymorphic;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.reflect.TypeUtils;
 import org.bson.BsonReader;
+import org.bson.BsonType;
 import org.bson.BsonWriter;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
@@ -14,10 +15,10 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -89,8 +90,88 @@ public class PojoContext {
                 return codec;
             }
         }
+        if (TypeUtils.isAssignable(type, Enum.class)) {
+            return new EnumReflectionCodecWrapper(typeCodecRegistry.getCodec(type));
+        }
         // fallback is BasicReflectionCodec
         return new BasicReflectionCodec(type, typeCodecRegistry);
+    }
+
+    private static class EnumReflectionCodecWrapper<T extends Enum<T>> implements ReflectionCodec<T> {
+        final Codec<T> codec;
+
+        public EnumReflectionCodecWrapper(Codec<T> codec) {
+            this.codec = codec;
+        }
+
+        @Override
+        public Map<String, MappedField> getPersistenceFields() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public T decodeFields(BsonReader reader, DecoderContext decoderContext, T instance) {
+            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                String fieldName = reader.readName();
+                if ("enum".equals(fieldName)) {
+                    return codec.decode(reader, decoderContext);
+                }
+                else
+                {
+                    reader.skipValue();
+                }
+            }
+
+            // throw new EnumValueNotFoundException??? instead of returning null?
+            return null;
+        }
+
+        @Override
+        public void encodeFields(BsonWriter writer, T instance, EncoderContext encoderContext) {
+            writer.writeName("enum");
+            codec.encode(writer, instance, encoderContext);
+        }
+
+        @Override
+        public void initializeDefaults(T instance) {
+
+        }
+
+        @Override
+        public MappedField getMappedField(String mappedFieldName) {
+            return null;
+        }
+
+        @Override
+        public MappedField getIdField() {
+            return null;
+        }
+
+        @Override
+        public T decode(BsonReader reader, DecoderContext decoderContext) {
+            T newInstance;
+            if (reader.getCurrentBsonType() == null || reader.getCurrentBsonType() == BsonType.DOCUMENT) {
+                reader.readStartDocument();
+                newInstance = decodeFields(reader, decoderContext, newInstance());
+                reader.readEndDocument();
+                return newInstance;
+            } else {
+                LOGGER.error("Expected to read document but reader is in state {}. Skipping value!", reader.getCurrentBsonType());
+                reader.skipValue();
+                return null;
+            }
+
+        }
+
+        @Override
+        public void encode(BsonWriter bsonWriter, T t, EncoderContext encoderContext) {
+            codec.encode(bsonWriter, t, encoderContext);
+        }
+
+        @Override
+        public Class<T> getEncoderClass() {
+            return codec.getEncoderClass();
+        }
     }
 
     /**
