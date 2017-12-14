@@ -162,13 +162,10 @@ public class MappedField {
             field.set(instance, value);
             return true;
         } catch (IllegalArgumentException | IllegalAccessException e) {
-            if (!TypeUtils.isAssignable(value.getClass(), fieldTypePair.realType)) {
-                LOGGER.warn("Cannot assign {} to {}. When decoding make sure you register all classes to the PojoCodec that are used within the model!", value, fieldTypePair.realType);
-                throw new NonRegisteredModelClassException("Cannot assign " + value + " to " + fieldTypePair.realType + ". When decoding make sure you register all classes to the PojoCodec that are used within the model!");
-            }
-            LOGGER.warn("Could not set field value.", field, instance, value, e);
+            Type valueType = value != null ? value.getClass() : null;
+            LOGGER.warn("Could not set field {} of instance {} to value {} of type", field, instance, value, e);
+            throw new TypeMismatchException("Could not set field " + field + " of instance " + instance + " to value " + value + " of type " + valueType, e);
         }
-        return false;
     }
 
     public Object getFieldValue(Object instance) {

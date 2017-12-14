@@ -4,7 +4,7 @@ import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import de.bild.codec.EnumCodecProvider;
-import de.bild.codec.NonRegisteredModelClassException;
+import de.bild.codec.TypeMismatchException;
 import de.bild.codec.PojoCodecProvider;
 import de.bild.codec.nonregisteredmodel.model.CompletePojo;
 import de.bild.codec.nonregisteredmodel.model.Pojo;
@@ -51,7 +51,7 @@ public class NonRegisteredModelClassTest {
     private MongoClient mongoClient;
 
 
-    @Test(expected = NonRegisteredModelClassException.class)
+    @Test(expected = TypeMismatchException.class)
     public void persistNonModelClassTest() {
         MongoCollection<Document> collection = mongoClient.getDatabase("test").getCollection("documents");
 
