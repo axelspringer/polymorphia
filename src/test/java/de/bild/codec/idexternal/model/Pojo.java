@@ -1,7 +1,6 @@
 package de.bild.codec.idexternal.model;
 
 import de.bild.codec.annotations.Id;
-import de.bild.codec.idexternal.CustomId;
 import de.bild.codec.idexternal.ExternalIdCodecProviderTest;
 import lombok.*;
 

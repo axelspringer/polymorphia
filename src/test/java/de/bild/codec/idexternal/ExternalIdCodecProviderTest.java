@@ -5,7 +5,9 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import de.bild.codec.EnumCodecProvider;
 import de.bild.codec.IdGenerator;
+import de.bild.codec.IgnoreAnnotation;
 import de.bild.codec.PojoCodecProvider;
+import de.bild.codec.idexternal.model.CustomId;
 import de.bild.codec.idexternal.model.Pojo;
 import org.bson.BsonReader;
 import org.bson.BsonWriter;
@@ -15,6 +17,7 @@ import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecProvider;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +45,7 @@ public class ExternalIdCodecProviderTest {
                             new CustomIdCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register(Pojo.class.getPackage().getName())
+                                    .ignoreTypesAnnotatedWith(IgnoreAnnotation.class)
                                     .build()
                     ),
                     MongoClient.getDefaultCodecRegistry());
@@ -112,5 +116,6 @@ public class ExternalIdCodecProviderTest {
 
         Pojo readPojo = collection.find(Filters.eq("_id", pojo.getId())).first();
 
+        Assert.assertNotNull(readPojo);
     }
 }

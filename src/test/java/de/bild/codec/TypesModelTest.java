@@ -1,9 +1,11 @@
 package de.bild.codec;
 
+import de.bild.codec.annotations.IgnoreType;
 import org.apache.commons.lang3.reflect.TypeUtils;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Test;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.*;
 
@@ -60,7 +62,6 @@ public class TypesModelTest {
     static class BigInteger extends Integer {
     }
 
-
     static class Outer {
         static class Inner {
             class InnerNonStatic {
@@ -103,6 +104,19 @@ public class TypesModelTest {
     }
 
 
+    @IgnoreType
+    static class IgnoreMeIfDesired {
+        static class InnerClassToBeIgnoredAsWell{
+
+        }
+    }
+
+    @IgnoreAnnotation
+    static class IgnoreMeIfDesiredAnotherAnnotation {
+    }
+
+
+
     @Test
     public void downGradeTypeTest() {
         TypesModel typesModel = new TypesModel(new HashSet<>(
@@ -110,7 +124,7 @@ public class TypesModelTest {
                         ModelClassBase.class,
                         ModelClassWithTypeParameter.class,
                         ModelClassWithoutTypeParameter.class
-                )), null);
+                )), null, null);
 
         assertThat(typesModel.getAssignableTypesWithinClassHierarchy(NonModelClassWithoutTypeParameter.class),
                 IsIterableContainingInAnyOrder.containsInAnyOrder(ModelClassWithoutTypeParameter.class));
@@ -127,13 +141,12 @@ public class TypesModelTest {
     }
 
 
-
-    static TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(TypesModelTest.class)), null);
+    static TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(TypesModelTest.class)), null, new HashSet<>(Arrays.asList(IgnoreType.class, IgnoreAnnotation.class)));
 
 
     @Test
     public void classParserTest() {
-        TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(Outer.class)), null);
+        TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(Outer.class)), null, null);
         assertTrue(typesModel.allClasses.size() == 3);
         assertThat(typesModel.allClasses, IsIterableContainingInAnyOrder.containsInAnyOrder(
                 Outer.class, Outer.Inner.class, Outer.Inner.InnerInner.class
@@ -211,6 +224,13 @@ public class TypesModelTest {
                                 TypeUtils.parameterize(Map.class, Integer.class, Long.class))
                 ));
 
+    }
+
+    @Test
+    public void testIgnorableTypes() {
+        assertNull(typesModel.getClassHierarchyNodeForType(IgnoreMeIfDesiredAnotherAnnotation.class));
+        assertNull(typesModel.getClassHierarchyNodeForType(IgnoreMeIfDesired.class));
+        assertNull(typesModel.getClassHierarchyNodeForType(IgnoreMeIfDesired.InnerClassToBeIgnoredAsWell.class));
     }
 
 }

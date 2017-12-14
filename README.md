@@ -162,6 +162,21 @@ Please be aware that you __cannot__ directly update fields with generic types! Y
 Please have a look at [UpdateTest](src/test/java/de/bild/codec/update/UpdateTest.java) for an example on how to do that.
 Please feel free to support this project and provide a solution for that issues. Ideas on how to solve it are outlined in the test itself.
 
+## Ignoring classes during package scan
+
+When builing your PojoCodecProvider, register some arbitrary annotation types that - once found at your model classes - have the effect that these classes won't be indexed.
+The advantage is, that you can keep all your model classes in one package even though you register different Codecs for some types. Those typs are then marked with an IgnoreAnnotation.
+ 
+```java
+    PojoCodecProvider.builder()
+        .register(Pojo.class.getPackage().getName())
+        .ignoreTypesAnnotatedWith(IgnoreAnnotation.class)
+        .build()
+
+```
+
+
+
 ## Advanced usage
 
 If you have a data structure within your mongo whereby you are not exactly sure what fields are declared, but you know 
@@ -218,7 +233,7 @@ Release notes are available [release_notes.md](release_notes.md).
 <dependency>
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>1.6.2</version>
+    <version>1.7.0</version>
 </dependency>
 ```
 

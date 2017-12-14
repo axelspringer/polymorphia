@@ -13,6 +13,7 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.util.ClassUtils;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -27,8 +28,10 @@ public class TypesModel {
 
     protected final Set<Class<?>> allClasses = new HashSet<>();
     protected final Map<Class<?>, ClassHierarchyNode> classHierarchy;
+    protected final Set<Class<? extends Annotation>> ignoreAnnotations;
 
-    public TypesModel(final Set<Class<?>> classes, final Set<String> packages) {
+    public TypesModel(final Set<Class<?>> classes, final Set<String> packages, final Set<Class<? extends Annotation>> ignoreAnnotations) {
+        this.ignoreAnnotations = ignoreAnnotations != null ? ignoreAnnotations : Collections.emptySet();
 
         // first index all direct classes
         if (classes != null) {
@@ -159,7 +162,13 @@ public class TypesModel {
 
 
     private void indexClass(Class<?> clazz) {
-        if (clazz.getEnclosingClass() == null ||
+        for (Class<? extends Annotation> ignoreAnnotation : ignoreAnnotations) {
+            if (clazz.getDeclaredAnnotationsByType(ignoreAnnotation).length > 0) {
+                LOGGER.debug("Ignoring class : {} because of ignore annotation {}", clazz, ignoreAnnotation);
+                return;
+            }
+        }
+        if ( clazz.getEnclosingClass() == null ||
                 (clazz.getEnclosingClass() != null && Modifier.isStatic(clazz.getModifiers()))) {
             boolean added = allClasses.add(clazz);
             if (added) {
@@ -262,6 +271,7 @@ public class TypesModel {
     /**
      * If the requested type is not registered within the class hierarchy it may still be persistable if a superclass is
      * registered. But then we need to find the type that is in the set of registered types.
+     *
      * @param type
      * @param classHierarchyNodeForType
      * @return
@@ -285,8 +295,7 @@ public class TypesModel {
             // TODO the type (that is within the group of registered classes) would loose information, so maybe
             // we should not try to infer the type arguments?
             return TypeUtils.parameterize(clazz, TypeUtils.getTypeArguments(type, clazz));
-        }
-        else {
+        } else {
             return clazz;
         }
     }

@@ -1,6 +1,11 @@
 Release Notes
 =======
 
+##1.7.0
+
+added support to ignore model classes in scanned packages
+
+
 ##1.6.2
 bug fix for [https://github.com/axelspringer/polymorphia/issues/5](https://github.com/axelspringer/polymorphia/issues/5) 
 

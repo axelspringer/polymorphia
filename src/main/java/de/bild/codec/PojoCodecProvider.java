@@ -14,6 +14,7 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -28,8 +29,8 @@ public class PojoCodecProvider implements CodecProvider {
     private final TypesModel typesModel;
     private final PojoContext pojoContext;
 
-    PojoCodecProvider(final Set<Class<?>> classes, final Set<String> packages, final List<CodecResolver> codecResolvers) {
-        this.typesModel = new TypesModel(classes, packages);
+    PojoCodecProvider(final Set<Class<?>> classes, final Set<String> packages, final Set<Class<? extends Annotation>> ignoreAnnotations, final List<CodecResolver> codecResolvers) {
+        this.typesModel = new TypesModel(classes, packages, ignoreAnnotations);
         this.pojoContext = new PojoContext(typesModel, codecResolvers);
     }
 
@@ -134,6 +135,7 @@ public class PojoCodecProvider implements CodecProvider {
         private Set<String> packages = new HashSet<>();
         private Set<Class<?>> classes = new HashSet<>();
         private List<CodecResolver> codecResolvers = new ArrayList<>();
+        private Set<Class<? extends Annotation>> ignoreAnnotations = new HashSet<>();
 
         private Builder() {
         }
@@ -153,6 +155,11 @@ public class PojoCodecProvider implements CodecProvider {
             return this;
         }
 
+        public Builder ignoreTypesAnnotatedWith(Class<? extends Annotation>... annotations) {
+            this.ignoreAnnotations.addAll(Arrays.asList(annotations));
+            return this;
+        }
+
         /**
          * A CodecResolver is supposed to provide specialized codecs in case the default implementation
          * {@link BasicReflectionCodec} is not sufficient
@@ -166,7 +173,7 @@ public class PojoCodecProvider implements CodecProvider {
         }
 
         public PojoCodecProvider build() {
-            return new PojoCodecProvider(classes, packages, codecResolvers);
+            return new PojoCodecProvider(classes, packages, ignoreAnnotations, codecResolvers);
         }
     }
 }

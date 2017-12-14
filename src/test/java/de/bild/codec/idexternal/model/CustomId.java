@@ -1,5 +1,6 @@
-package de.bild.codec.idexternal;
+package de.bild.codec.idexternal.model;
 
+import de.bild.codec.IgnoreAnnotation;
 import lombok.*;
 
 @EqualsAndHashCode
@@ -8,6 +9,7 @@ import lombok.*;
 @AllArgsConstructor
 @Getter
 @Setter
+@IgnoreAnnotation
 public class CustomId {
     String aStringProperty;
 }
