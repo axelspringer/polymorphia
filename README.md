@@ -165,7 +165,9 @@ Please feel free to support this project and provide a solution for that issues.
 ## Ignoring classes during package scan
 
 When builing your PojoCodecProvider, register some arbitrary annotation types that - once found at your model classes - have the effect that these classes won't be indexed.
-The advantage is, that you can keep all your model classes in one package even though you register different Codecs for some types. Those typs are then marked with an IgnoreAnnotation.
+The advantage is, that you can keep all your model classes in one package even though you register different Codecs for some types. 
+Mark the types you want to be ignored with one (or if desired more) of your created annotation types.
+You may wonder, why different annotations can be defined to ignore types. As ou could define multiple instances of PojoCodecProvider you have better control of type exclusions, depending on the instantiated PojoCodecProvider. 
  
 ```java
     PojoCodecProvider.builder()
