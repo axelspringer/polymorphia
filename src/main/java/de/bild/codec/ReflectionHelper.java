@@ -26,6 +26,22 @@ public abstract class ReflectionHelper {
         return list;
     }
 
+    /**
+     * Finds a field with fully resolved type within the given type
+     * @param type any type generic or simply a class
+     * @param fieldName a name of a field within that type
+     * @return null, or the resolved FieldTypePair
+     */
+    public static FieldTypePair getDeclaredAndInheritedFieldTypePair(final Type type, String fieldName) {
+        List<FieldTypePair> declaredAndInheritedFieldTypePairs = getDeclaredAndInheritedFieldTypePairs(type, true);
+        for (FieldTypePair declaredAndInheritedFieldTypePair : declaredAndInheritedFieldTypePairs) {
+            if (fieldName.equals(declaredAndInheritedFieldTypePair.getField().getName())) {
+                return declaredAndInheritedFieldTypePair;
+            }
+        }
+        return null;
+    }
+
     private static void getFieldTypePairsRecursive(final Type type, final boolean returnFinalFields, List<FieldTypePair> currentList, Map<String, Type> realTypeMap) {
         if (type instanceof ParameterizedType) {
             getFieldTypePairsRecursive((ParameterizedType) type, returnFinalFields, currentList, realTypeMap);

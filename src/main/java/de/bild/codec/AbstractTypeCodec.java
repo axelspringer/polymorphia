@@ -54,7 +54,6 @@ public abstract class AbstractTypeCodec<T> implements TypeCodec<T> {
         }
     }
 
-    @Override
     public T newInstance() {
         try {
             return defaultConstructor.newInstance();

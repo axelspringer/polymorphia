@@ -28,7 +28,6 @@ public abstract class MapTypeCodec<K, V> extends AbstractTypeCodec<Map<K, V>> {
         return super.getDefaultConstructor(clazz);
     }
 
-    @Override
     public Map<K, V> defaultInstance() {
         return newInstance();
     }

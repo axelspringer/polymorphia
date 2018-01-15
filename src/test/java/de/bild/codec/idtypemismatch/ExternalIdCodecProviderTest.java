@@ -1,18 +1,24 @@
-package de.bild.codec.idspecialcodecresolver;
+package de.bild.codec.idtypemismatch;
 
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
-import de.bild.codec.*;
-import de.bild.codec.idspecialcodecresolver.model.CustomId;
-import de.bild.codec.idspecialcodecresolver.model.Pojo;
-import org.apache.commons.lang3.reflect.TypeUtils;
+import de.bild.codec.EnumCodecProvider;
+import de.bild.codec.IdGenerationException;
+import de.bild.codec.IdGenerator;
+import de.bild.codec.PojoCodecProvider;
+import de.bild.codec.annotations.IgnoreType;
+import de.bild.codec.idtypemismatch.model.CustomId;
+import de.bild.codec.idtypemismatch.model.Pojo;
 import org.bson.BsonReader;
 import org.bson.BsonWriter;
+import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
+import org.bson.codecs.configuration.CodecProvider;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,43 +43,52 @@ public class ExternalIdCodecProviderTest {
             return CodecRegistries.fromRegistries(
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
+                            new CustomIdCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register(Pojo.class.getPackage().getName())
-                                    .registerCodecResolver((CodecResolver) (type, typeCodecRegistry, codecConfiguration) -> {
-                                        if (TypeUtils.isAssignable(type, CustomId.class)) {
-                                            return new CustomIdCodec((Class<CustomId>)type, typeCodecRegistry, codecConfiguration);
-                                        }
-                                        return null;
-                                    }).build()
+                                    .ignoreTypesAnnotatedWith(IgnoreType.class)
+                                    .build()
                     ),
                     MongoClient.getDefaultCodecRegistry());
         }
     }
 
-
-
-    public static class CustomIdGenerator implements IdGenerator<CustomId> {
+    @SuppressWarnings("unchecked")
+    public static class CustomIdCodecProvider implements CodecProvider {
         @Override
-        public CustomId generate() {
-            return CustomId.builder().aStringProperty("IdString: " + RANDOM.nextInt()).build();
+        public <T> Codec<T> get(Class<T> clazz, CodecRegistry codecRegistry) {
+            if (CustomId.class.isAssignableFrom(clazz)) {
+                return (Codec<T>)new CustomIdCodec();
+            }
+            return null;
         }
     }
 
-    static class CustomIdCodec<T extends CustomId> extends BasicReflectionCodec<T> {
-        public CustomIdCodec(Class<T> type, TypeCodecRegistry typeCodecRegistry, CodecConfiguration codecConfiguration) {
-            super(type, typeCodecRegistry, codecConfiguration);
+    static class CustomIdCodec implements Codec<CustomId> {
+        @Override
+        public CustomId decode(BsonReader bsonReader, DecoderContext decoderContext) {
+            return CustomId.builder().aStringProperty(bsonReader.readString()).build();
         }
 
         @Override
-        public T decodeFields(BsonReader reader, DecoderContext decoderContext, T instance) {
-            // do some custom stuff here. as an example have a look at super.decodeFields(reader, decoderContext, instance);
-            return super.decodeFields(reader, decoderContext, instance);
+        public void encode(BsonWriter bsonWriter, CustomId customId, EncoderContext encoderContext) {
+            bsonWriter.writeString(customId.getAStringProperty());
         }
 
         @Override
-        public void encodeFields(BsonWriter writer, T instance, EncoderContext encoderContext) {
-            // do some custom stuff here. as an example have a look at super.encodeFields(writer, instance, encoderContext)
-            super.encodeFields(writer, instance, encoderContext);
+        public Class<CustomId> getEncoderClass() {
+            return CustomId.class;
+        }
+    }
+
+    /**
+     * using WrongCustomIdGenerator generates a wrong customId and therefore generates an exception
+     * use at {@link Pojo#id} -  @Id(collectible = true, value = ExternalIdCodecProviderTest.WrongCustomIdGenerator.class)
+     */
+    public static class WrongCustomIdGenerator implements IdGenerator<Object> {
+        @Override
+        public Object generate() {
+            return "SomeRandomWrongCustomId";
         }
     }
 
@@ -84,7 +99,7 @@ public class ExternalIdCodecProviderTest {
     @Autowired
     private MongoClient mongoClient;
 
-    @Test
+    @Test(expected = IdGenerationException.class)
     public void testExternalId() {
         Pojo pojo = Pojo.builder().id(null).someOtherProperty("some nice string").build();
         MongoCollection<Pojo> collection = mongoClient.getDatabase("test").getCollection("documents").withDocumentClass(Pojo.class);
@@ -92,5 +107,6 @@ public class ExternalIdCodecProviderTest {
 
         Pojo readPojo = collection.find(Filters.eq("_id", pojo.getId())).first();
 
+        Assert.assertNotNull(readPojo);
     }
 }

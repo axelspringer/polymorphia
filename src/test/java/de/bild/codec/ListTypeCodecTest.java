@@ -19,8 +19,8 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.reflect.Constructor;
+import java.util.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
@@ -57,6 +57,11 @@ public class ListTypeCodecTest {
     }
 
 
+    static class SetPojo {
+        SortedSet<Integer> integerSortedSet;
+        Set<Integer> integerSet;
+    }
+
     /**
      * Testing if List<String> can be decoded into a
      */
@@ -81,5 +86,14 @@ public class ListTypeCodecTest {
         DecodingPojo decodingPojo = decodingPojoCodec.decode(new JsonReader(stringWriter.toString()), DecoderContext.builder().build());
         Assert.assertNotNull(decodingPojo.someList);
         assertThat(decodingPojo.someList, instanceOf(ListOfStrings.class));
+    }
+
+    @Test
+    public void testDifferentTypes() {
+        Codec<SetPojo> setPojoCodec = codecRegistry.get(SetPojo.class);
+        Assert.assertTrue(setPojoCodec instanceof BasicReflectionCodec);
+        BasicReflectionCodec<SetPojo> basicReflectionCodec = (BasicReflectionCodec<SetPojo>)setPojoCodec;
+        Constructor<Set<Integer>> constructor = ((SetTypeCodec<Set<Integer>, Integer>) basicReflectionCodec.getMappedField("integerSortedSet").getCodec()).defaultConstructor;
+        Assert.assertTrue(TreeSet.class.equals(constructor.getDeclaringClass()));
     }
 }

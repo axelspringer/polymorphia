@@ -20,12 +20,12 @@ import java.util.*;
 public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(PolymorphicReflectionCodec.class);
     final Class<T> clazz;
-    final Map<String, ReflectionCodec> discriminatorToCodec = new HashMap<>();
-    final Map<Class<?>, ReflectionCodec<T>> classToCodec = new HashMap<>();
+    final Map<String, PolymorphicCodec<T>> discriminatorToCodec = new HashMap<>();
+    final Map<Class<?>, PolymorphicCodec<T>> classToCodec = new HashMap<>();
     final Map<Class<?>, String> mainDiscriminators = new HashMap<>();
     final Map<Class<?>, String> discriminatorKeys = new HashMap<>();
     final Set<String> allDiscriminatorKeys = new HashSet<>();
-    ReflectionCodec fallBackCodec;
+    PolymorphicCodec<T> fallBackCodec;
     final boolean isCollectible;
 
     public PolymorphicReflectionCodec(Type type, Set<Type> validTypes, TypeCodecRegistry typeCodecRegistry, PojoContext pojoContext) {
@@ -42,7 +42,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
                 discriminatorKeys.putIfAbsent(clazz, discriminatorKey);
                 allDiscriminatorKeys.add(discriminatorKey);
 
-                ReflectionCodec codecFor = pojoContext.resolve(validType, typeCodecRegistry);
+                PolymorphicCodec codecFor = pojoContext.resolve(validType, typeCodecRegistry);
 
                 if (isFallBack) {
                     if (fallBackCodec != null) {
@@ -75,7 +75,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
 
                 for (String discriminator : allDiscriminators) {
-                    ReflectionCodec registeredCodec = this.discriminatorToCodec.putIfAbsent(discriminator, codecFor);
+                    PolymorphicCodec<T> registeredCodec = this.discriminatorToCodec.putIfAbsent(discriminator, codecFor);
                     if (registeredCodec != null) {
                         LOGGER.warn("Cannot register multiple classes ({}, {}) for the same discriminator {} ", clazz, registeredCodec.getEncoderClass(), discriminator);
                         throw new IllegalArgumentException("Cannot register multiple classes (" + clazz + ", " + registeredCodec.getEncoderClass() + ") for the same discriminator " + discriminator);
@@ -85,19 +85,12 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
             }
         }
 
-        //check for properties within classes that are named exacly like one of the used main discrimimnator keys
-        for (ReflectionCodec<T> usedCodec : classToCodec.values()) {
-            for (String allDiscriminatorKey : allDiscriminatorKeys) {
-                MappedField mappedField = usedCodec.getMappedField(allDiscriminatorKey);
-                if (mappedField != null) {
-                    LOGGER.error("A field {} within {} is named like one of the discriminator keys {}", mappedField.getMappedFieldName(), usedCodec.getEncoderClass(), allDiscriminatorKeys);
-                    throw new IllegalArgumentException("A field " + mappedField.getMappedFieldName() + " within " + usedCodec.getEncoderClass() + " is named like one of the discriminator keys " + allDiscriminatorKeys);
-
-                }
-            }
+        //check for properties within classes that are named exactly like one of the used main discrimimnator keys
+        for (PolymorphicCodec<T> typeCodec : classToCodec.values()) {
+            typeCodec.verifyFieldsNotNamedLikeAnyDiscriminatorKey(allDiscriminatorKeys);
         }
 
-
+        // if any of the subclass codecs need  application id generation, mark this codec as being collectible
         this.isCollectible = isAnyCodecCollectible;
 
         LOGGER.debug("Type {} -> Found the following matching types {}", type, discriminatorToCodec);
@@ -113,10 +106,15 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
     @Override
     public T decode(BsonReader reader, DecoderContext decoderContext) {
+        if (reader.getCurrentBsonType() == BsonType.NULL) {
+            reader.readNull();
+            return null;
+        }
+
         String discriminator = null;
         reader.mark();
         reader.readStartDocument();
-        ReflectionCodec<T> codec = null;
+        PolymorphicCodec<T> codec = null;
         while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
             String fieldName = reader.readName();
             if (allDiscriminatorKeys.contains(fieldName)) {
@@ -171,30 +169,31 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
     }
 
 
-    protected T decodeWithType(BsonReader reader, DecoderContext decoderContext, ReflectionCodec<T> typeCodec) {
-        return typeCodec.decode(reader, decoderContext);
+    protected T decodeWithType(BsonReader reader, DecoderContext decoderContext, PolymorphicCodec<T> polymorphicCodec) {
+        return polymorphicCodec.decode(reader, decoderContext);
     }
 
     @Override
     public void encode(BsonWriter writer, T value, EncoderContext encoderContext) {
-        writer.writeStartDocument();
-        encodeFields(writer, value, encoderContext);
-        writer.writeEndDocument();
-    }
-
-    public void encodeFields(BsonWriter writer, T value, EncoderContext encoderContext) {
-        ReflectionCodec<T> codecForValue = getCodecForClass(value.getClass());
-        if (codecForValue != null) {
-            writer.writeName(discriminatorKeys.get(codecForValue.getEncoderClass()));
-            writer.writeString(mainDiscriminators.get(codecForValue.getEncoderClass()));
-            encodeType(writer, value, encoderContext, codecForValue);
-        } else {
-            LOGGER.warn("The value to be encoded has the wrong type {}. This codec can only handle {}", value.getClass(), discriminatorToCodec);
+        if (value == null) {
+            writer.writeNull();
+        }
+        else {
+            writer.writeStartDocument();
+            PolymorphicCodec<T> codecForValue = getCodecForClass(value.getClass());
+            if (codecForValue != null) {
+                writer.writeName(discriminatorKeys.get(codecForValue.getEncoderClass()));
+                writer.writeString(mainDiscriminators.get(codecForValue.getEncoderClass()));
+                codecForValue.encodeFields(writer, value, encoderContext);
+            } else {
+                LOGGER.warn("The value to be encoded has the wrong type {}. This codec can only handle {}", value.getClass(), discriminatorToCodec);
+            }
+            writer.writeEndDocument();
         }
     }
 
 
-    private ReflectionCodec getCodecForDiscriminator(String discriminator) {
+    private PolymorphicCodec<T> getCodecForDiscriminator(String discriminator) {
         if (discriminator == null) {
             LOGGER.warn("Discriminator key cannot be null.");
             return null;
@@ -207,25 +206,22 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
      *
      * @return a codec responsible for a valid class within the class hierarchy
      */
-    public ReflectionCodec<T> getCodecForClass(Class<?> clazz) {
+    public PolymorphicCodec<T> getCodecForClass(Class<?> clazz) {
         if (clazz == null || Object.class.equals(clazz)) {
             return null;
         }
-        ReflectionCodec<T> codec = classToCodec.get(clazz);
+        PolymorphicCodec<T> codec = classToCodec.get(clazz);
         if (codec != null) {
             return codec;
         }
         return getCodecForClass(clazz.getSuperclass());
     }
 
-    private ReflectionCodec<T> getCodecForValue(T document) {
+    private PolymorphicCodec<T> getCodecForValue(T document) {
         return getCodecForClass(document.getClass());
     }
 
 
-    protected void encodeType(BsonWriter writer, T value, EncoderContext encoderContext, ReflectionCodec<T> typeCodec) {
-        typeCodec.encodeFields(writer, value, encoderContext);
-    }
 
     @Override
     public Class<T> getEncoderClass() {
@@ -239,7 +235,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
     @Override
     public T generateIdIfAbsentFromDocument(T document) {
-        ReflectionCodec<T> codecForValue = getCodecForValue(document);
+        PolymorphicCodec<T> codecForValue = getCodecForValue(document);
         if (codecForValue != null) {
             codecForValue.generateIdIfAbsentFromDocument(document);
         }
@@ -248,7 +244,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
     @Override
     public boolean documentHasId(T document) {
-        ReflectionCodec<T> codecForValue = getCodecForValue(document);
+        PolymorphicCodec<T> codecForValue = getCodecForValue(document);
         if (codecForValue != null) {
             return codecForValue.documentHasId(document);
         }
@@ -257,7 +253,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
 
     @Override
     public BsonValue getDocumentId(T document) {
-        ReflectionCodec<T> codecForValue = getCodecForValue(document);
+        PolymorphicCodec<T> codecForValue = getCodecForValue(document);
         if (codecForValue != null) {
             return codecForValue.getDocumentId(document);
         }

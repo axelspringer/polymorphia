@@ -3,7 +3,6 @@ package de.bild.codec;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
-import de.bild.codec.annotations.DiscriminatorKey;
 import de.bild.codec.annotations.Id;
 import org.apache.commons.lang3.reflect.TypeUtils;
 import org.bson.BsonReader;
@@ -31,7 +30,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.StringWriter;
-import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
 
@@ -53,9 +51,9 @@ public class CodecResolverTest {
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register(CodecResolverTest.class)
-                                    .registerCodecResolver((CodecResolver) (type, typeCodecRegistry) -> {
+                                    .registerCodecResolver((CodecResolver) (type, typeCodecRegistry, codecConfiguration) -> {
                                         if (TypeUtils.isAssignable(type, Base.class)) {
-                                            return new DocumentCodec((Class<? extends Base>) type, typeCodecRegistry);
+                                            return new DocumentCodec((Class<? extends Base>) type, typeCodecRegistry, codecConfiguration);
                                         }
                                         return null;
                                     })
@@ -155,13 +153,13 @@ public class CodecResolverTest {
     static class DocumentCodec<T extends Base> extends BasicReflectionCodec<T> {
         final ReflectionCodec<MetaData> documentMetaCodec;
 
-        public DocumentCodec(Class<T> type, TypeCodecRegistry typeCodecRegistry) {
-            super(type, typeCodecRegistry);
+        public DocumentCodec(Class<T> type, TypeCodecRegistry typeCodecRegistry, CodecConfiguration codecConfiguration) {
+            super(type, typeCodecRegistry, codecConfiguration);
             MappedField mappedField = getMappedField("meta");
             Codec metaCodec = mappedField.getCodec();
             if (metaCodec instanceof PolymorphicReflectionCodec) {
                 PolymorphicReflectionCodec<MetaData> polymorphicMetaCodec = (PolymorphicReflectionCodec<MetaData>) metaCodec;
-                this.documentMetaCodec = polymorphicMetaCodec.getCodecForClass(mappedField.getField().getType());
+                this.documentMetaCodec = (ReflectionCodec<MetaData>)polymorphicMetaCodec.getCodecForClass(mappedField.getField().getType());
             } else {
                 this.documentMetaCodec = (ReflectionCodec<MetaData>) metaCodec;
             }

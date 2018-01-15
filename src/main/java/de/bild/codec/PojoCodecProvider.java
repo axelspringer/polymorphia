@@ -2,6 +2,8 @@ package de.bild.codec;
 
 
 import com.google.common.reflect.AbstractInvocationHandler;
+import de.bild.codec.annotations.DecodeUndefinedHandlingStrategy;
+import de.bild.codec.annotations.EncodeNullHandlingStrategy;
 import org.bson.BsonReader;
 import org.bson.BsonValue;
 import org.bson.BsonWriter;
@@ -29,9 +31,14 @@ public class PojoCodecProvider implements CodecProvider {
     private final TypesModel typesModel;
     private final PojoContext pojoContext;
 
-    PojoCodecProvider(final Set<Class<?>> classes, final Set<String> packages, final Set<Class<? extends Annotation>> ignoreAnnotations, final List<CodecResolver> codecResolvers) {
+    PojoCodecProvider(final Set<Class<?>> classes,
+                      final Set<String> packages,
+                      final Set<Class<? extends Annotation>> ignoreAnnotations,
+                      List<TypeCodecProvider> typeCodecProviders,
+                      final List<CodecResolver> codecResolvers,
+                      CodecConfiguration codecConfiguration) {
         this.typesModel = new TypesModel(classes, packages, ignoreAnnotations);
-        this.pojoContext = new PojoContext(typesModel, codecResolvers);
+        this.pojoContext = new PojoContext(typesModel, codecResolvers, typeCodecProviders, codecConfiguration);
     }
 
     public static Builder builder() {
@@ -136,9 +143,10 @@ public class PojoCodecProvider implements CodecProvider {
         private Set<Class<?>> classes = new HashSet<>();
         private List<CodecResolver> codecResolvers = new ArrayList<>();
         private Set<Class<? extends Annotation>> ignoreAnnotations = new HashSet<>();
-
-        private Builder() {
-        }
+        private List<TypeCodecProvider> typeCodecProviders = new ArrayList<>();
+        private EncodeNullHandlingStrategy.Strategy encodeNullHandlingStrategy = EncodeNullHandlingStrategy.Strategy.CODEC;
+        private DecodeUndefinedHandlingStrategy.Strategy decodeUndefinedHandlingStrategy = DecodeUndefinedHandlingStrategy.Strategy.KEEP_POJO_DEFAULT;
+        private boolean encodeNulls = false;
 
         public Builder setPackages(Set<String> packages) {
             this.packages = packages;
@@ -161,6 +169,34 @@ public class PojoCodecProvider implements CodecProvider {
         }
 
         /**
+         * In case you need to register
+         * @param typeCodecProviders
+         * @return
+         */
+        public Builder register(TypeCodecProvider... typeCodecProviders) {
+            this.typeCodecProviders.addAll(Arrays.asList(typeCodecProviders));
+            return this;
+        }
+
+        public Builder encodeNullHandlingStrategy(EncodeNullHandlingStrategy.Strategy encodeNullHandlingStrategy) {
+            if (encodeNullHandlingStrategy != null) {
+                this.encodeNullHandlingStrategy = encodeNullHandlingStrategy;
+            }
+            return this;
+        }
+
+        public Builder decodeUndefinedHandlingStrategy(DecodeUndefinedHandlingStrategy.Strategy decodeUndefinedHandlingStrategy) {
+            if (decodeUndefinedHandlingStrategy != null) {
+                this.decodeUndefinedHandlingStrategy = decodeUndefinedHandlingStrategy;
+            }
+            return this;
+        }
+
+        public Builder encodeNulls(boolean encodeNulls) {
+            this.encodeNulls = encodeNulls;
+            return this;
+        }
+        /**
          * A CodecResolver is supposed to provide specialized codecs in case the default implementation
          * {@link BasicReflectionCodec} is not sufficient
          *
@@ -173,7 +209,12 @@ public class PojoCodecProvider implements CodecProvider {
         }
 
         public PojoCodecProvider build() {
-            return new PojoCodecProvider(classes, packages, ignoreAnnotations, codecResolvers);
+            CodecConfiguration codecConfiguration = CodecConfiguration.builder()
+                    .decodeUndefinedHandlingStrategy(decodeUndefinedHandlingStrategy)
+                    .encodeNullHandlingStrategy(encodeNullHandlingStrategy)
+                    .encodeNulls(encodeNulls)
+                    .build();
+            return new PojoCodecProvider(classes, packages, ignoreAnnotations, typeCodecProviders, codecResolvers, codecConfiguration);
         }
     }
 }

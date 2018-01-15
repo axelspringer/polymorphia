@@ -1,9 +1,6 @@
 package de.bild.codec;
 
-import de.bild.codec.annotations.CodecToBeUsed;
-import de.bild.codec.annotations.Id;
-import de.bild.codec.annotations.LockingVersion;
-import org.apache.commons.lang3.reflect.TypeUtils;
+import de.bild.codec.annotations.*;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.BsonWriter;
@@ -20,7 +17,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.*;
 
-public class MappedField {
+/**
+ * @param <T> The type of the persistence class container (pojo) for this mapped field
+ * @param <F> The type of the field value
+ */
+public class MappedField<T, F> {
     private static final Logger LOGGER = LoggerFactory.getLogger(MappedField.class);
     public static final String ID_KEY = "_id";
 
@@ -29,25 +30,39 @@ public class MappedField {
     static {
         ANNOTATIONS_TO_BE_HANDLED.add(Id.class);
         ANNOTATIONS_TO_BE_HANDLED.add(LockingVersion.class);
+        ANNOTATIONS_TO_BE_HANDLED.add(EncodeNullHandlingStrategy.class);
+        ANNOTATIONS_TO_BE_HANDLED.add(DecodeUndefinedHandlingStrategy.class);
+        ANNOTATIONS_TO_BE_HANDLED.add(EncodeNulls.class);
     }
 
-    final Field field;
-    final Class persistedClass;
 
-    private Codec codec;
+    final Field field;
+    final Class<T> persistedClass;
+
+    private Codec<F> codec;
     private PrimitiveType primitiveType;
 
     final FieldTypePair fieldTypePair;
+    final EncodeNullHandlingStrategy.Strategy encodeNullHandlingStrategy;
+    final DecodeUndefinedHandlingStrategy.Strategy decodeUndefinedHandlingStrategy;
+    final boolean encodeNulls;
+
+    final CodecConfiguration codecConfiguration;
+
 
     // Annotations that have been found relevant to mapping
     private final Map<Class<? extends Annotation>, Annotation> foundAnnotations;
 
-    public MappedField(FieldTypePair fieldTypePair, Class<?> persistedClass, TypeCodecRegistry typeCodecRegistry) {
+    public MappedField(FieldTypePair fieldTypePair,
+                       Class<T> persistedClass,
+                       TypeCodecRegistry typeCodecRegistry,
+                       CodecConfiguration codecConfiguration) {
         this.field = fieldTypePair.getField();
         this.field.setAccessible(true);
         this.fieldTypePair = fieldTypePair;
         this.persistedClass = persistedClass;
         this.foundAnnotations = buildAnnotationMap(field);
+        this.codecConfiguration = codecConfiguration;
 
         if (field.getType().isPrimitive()) {
             this.primitiveType = PrimitiveType.get(field.getType());
@@ -75,9 +90,25 @@ public class MappedField {
             } else {
                 this.codec = typeCodecRegistry.getCodec(fieldTypePair.getRealType());
             }
-
         }
+
+        /**
+         * get configuration for field
+         */
+
+        EncodeNullHandlingStrategy classEncodeNullHandlingStrategy = persistedClass.getDeclaredAnnotation(EncodeNullHandlingStrategy.class);
+        EncodeNullHandlingStrategy fieldEncodeNullHandlingStrategy = getAnnotation(EncodeNullHandlingStrategy.class);
+        this.encodeNullHandlingStrategy = (fieldEncodeNullHandlingStrategy != null) ? fieldEncodeNullHandlingStrategy.value() : (classEncodeNullHandlingStrategy != null) ? classEncodeNullHandlingStrategy.value() : codecConfiguration.getEncodeNullHandlingStrategy();
+
+        DecodeUndefinedHandlingStrategy classDecodeUndefinedHandlingStrategy = persistedClass.getDeclaredAnnotation(DecodeUndefinedHandlingStrategy.class);
+        DecodeUndefinedHandlingStrategy fieldDecodeUndefinedHandlingStrategy = getAnnotation(DecodeUndefinedHandlingStrategy.class);
+        this.decodeUndefinedHandlingStrategy = (fieldDecodeUndefinedHandlingStrategy != null) ? fieldDecodeUndefinedHandlingStrategy.value() : (classDecodeUndefinedHandlingStrategy != null) ? classDecodeUndefinedHandlingStrategy.value() : codecConfiguration.getDecodeUndefinedHandlingStrategy();
+
+        EncodeNulls classEncodeNulls = persistedClass.getDeclaredAnnotation(EncodeNulls.class);
+        EncodeNulls fieldEncodeNulls = getAnnotation(EncodeNulls.class);
+        this.encodeNulls = (fieldEncodeNulls != null) ? fieldEncodeNulls.value() : (classEncodeNulls != null) ? classEncodeNulls.value() : codecConfiguration.isEncodeNulls();
     }
+
 
     private static Map<Class<? extends Annotation>, Annotation> buildAnnotationMap(Field field) {
         final Map<Class<? extends Annotation>, Annotation> foundAnnotations = new HashMap<>();
@@ -124,13 +155,6 @@ public class MappedField {
     }
 
     /**
-     * @return the declaring class of the java field
-     */
-    public Class getDeclaringClass() {
-        return field.getDeclaringClass();
-    }
-
-    /**
      * @return the underlying java field
      */
     public Field getField() {
@@ -157,7 +181,7 @@ public class MappedField {
         return field.hashCode();
     }
 
-    public boolean setFieldValue(Object instance, Object value) {
+    public boolean setFieldValue(T instance, F value) {
         try {
             field.set(instance, value);
             return true;
@@ -168,16 +192,16 @@ public class MappedField {
         }
     }
 
-    public Object getFieldValue(Object instance) {
+    public F getFieldValue(T instance) {
         try {
-            return field.get(instance);
+            return (F) field.get(instance);
         } catch (IllegalAccessException e) {
             LOGGER.warn("Could not get field value.", field, instance, e);
         }
         return null;
     }
 
-    public <T> void encode(BsonWriter writer, T instance, EncoderContext encoderContext) {
+    public void encode(BsonWriter writer, T instance, EncoderContext encoderContext) {
         LOGGER.debug("Encode field : " + getMappedFieldName());
         if (field.getType().isPrimitive()) {
             if (isLockingVersionField()) {
@@ -186,20 +210,34 @@ public class MappedField {
                 primitiveType.encode(writer, instance, encoderContext, this);
             }
         } else if (codec != null) {
-            Object fieldValue = getFieldValue(instance);
-            if (fieldValue == null && codec instanceof TypeCodec) {
-                TypeCodec typeCodec = (TypeCodec) codec;
-                fieldValue = typeCodec.defaultInstance();
+            F fieldValue = getFieldValue(instance);
+            if (fieldValue == null) {
+                switch (encodeNullHandlingStrategy) {
+                    case CODEC: {
+                        if (codec instanceof TypeCodec) {
+                            TypeCodec<F> typeCodec = (TypeCodec) codec;
+                            fieldValue = typeCodec.defaultInstance();
+                        }
+                        break;
+                    }
+                    case KEEP_NULL:
+                        break;
+
+                }
             }
 
-            if (fieldValue != null) {
+            if (encodeNulls || fieldValue != null) {
                 writer.writeName(getMappedFieldName());
-                codec.encode(writer, fieldValue, encoderContext);
+                if (fieldValue == null) {
+                    writer.writeNull();
+                } else {
+                    codec.encode(writer, fieldValue, encoderContext);
+                }
             }
         }
     }
 
-    private <T> void writeLockingVersion(BsonWriter writer, T instance) {
+    private void writeLockingVersion(BsonWriter writer, T instance) {
         try {
             writer.writeName(getMappedFieldName());
             int lockingVersion = field.getInt(instance) + 1;
@@ -209,7 +247,7 @@ public class MappedField {
         }
     }
 
-    public <T> void decode(BsonReader reader, T instance, DecoderContext decoderContext) {
+    public void decode(BsonReader reader, T instance, DecoderContext decoderContext) {
         LOGGER.debug("Decode field : " + getMappedFieldName() + " Signature: " + fieldTypePair.getRealType());
         if (field.getType().isPrimitive()) {
             if (reader.getCurrentBsonType() == BsonType.NULL || reader.getCurrentBsonType() == BsonType.UNDEFINED) {
@@ -218,16 +256,16 @@ public class MappedField {
                 primitiveType.decode(reader, instance, decoderContext, this);
             }
         } else if (codec != null) {
-            if (reader.getCurrentBsonType() == BsonType.NULL) {
+            if (reader.getCurrentBsonType() == BsonType.NULL ) {
                 reader.readNull();
                 setFieldValue(instance, null);
-            } else if (reader.getCurrentBsonType() == BsonType.UNDEFINED) {
+            }
+            else if (reader.getCurrentBsonType() == BsonType.UNDEFINED) {
                 reader.skipValue();
-            } else {
-                Object decoded = codec.decode(reader, decoderContext);
-                if (decoded != null) {
-                    setFieldValue(instance, decoded);
-                }
+            }
+            else {
+                F decoded = codec.decode(reader, decoderContext);
+                setFieldValue(instance, decoded);
             }
         }
     }
@@ -245,25 +283,34 @@ public class MappedField {
     }
 
     /**
-     *
      * @param instance to initialize
-     * @param <T> type of the instance
-     * @return true, if the codec initialized (changed) the field
+     * @return true, if the codec initialized (potentially changed) the field
      */
-    public <T> boolean initializeDefault(T instance) {
+    public void initializeUndefinedValue(T instance) {
         if (field.getType().isPrimitive()) {
-            return false;
-        } else if (codec != null && codec instanceof TypeCodec) {
-            TypeCodec typeCodec = (TypeCodec) codec;
-            if (getFieldValue(instance) == null) {
-                Object defaultValue = typeCodec.defaultInstance();
-                if (defaultValue != null) {
-                    setFieldValue(instance, defaultValue);
-                    return true;
-                }
-            }
+            return;
         }
-        return false;
+        switch (decodeUndefinedHandlingStrategy) {
+            case CODEC: {
+                // this potentially overwrites the default value set within the pojo
+                if (codec != null && codec instanceof TypeCodec) {
+                    TypeCodec<F> typeCodec = (TypeCodec) codec;
+                    F defaultValue = typeCodec.defaultInstance();
+                    setFieldValue(instance, defaultValue);
+                    return;
+                } else {
+                    LOGGER.info("The provided codec {} for field {} is not capable of retrieving default values.", codec, field);
+                }
+                break;
+            }
+            case SET_TO_NULL: {
+                // this potentially overwrites the default value set within the pojo
+                setFieldValue(instance, null);
+                return;
+            }
+            case KEEP_POJO_DEFAULT:
+                break;
+        }
     }
 
 

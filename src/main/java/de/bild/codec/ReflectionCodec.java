@@ -1,34 +1,39 @@
 package de.bild.codec;
 
-import org.bson.BsonReader;
-import org.bson.BsonWriter;
-import org.bson.codecs.DecoderContext;
-import org.bson.codecs.EncoderContext;
-
 import java.util.Map;
+import java.util.Set;
+
 
 /**
- *
- * @param <T> the value type
+ * Used by Polymorphia internally to tag codecs that use reflection to build a Codec for al properties
+ * @param <T>
  */
-public interface ReflectionCodec<T> extends TypeCodec<T> {
+public interface ReflectionCodec<T> extends PolymorphicCodec<T> {
     Map<String, MappedField> getPersistenceFields();
-
-    T decodeFields(BsonReader reader, DecoderContext decoderContext, T instance);
-
-    void encodeFields(BsonWriter writer, T instance, EncoderContext encoderContext);
-
-    default void postDecode(T instance) {
-        // do nothing
-    }
-
-    default void preEncode(T instance) {
-        // solely meant to not introduce braking changes
-    }
-
-    void initializeDefaults(T instance);
 
     MappedField getMappedField(String mappedFieldName);
 
-    MappedField getIdField();
+    /**
+     * Called after entity has been decoded
+     * @param instance
+     */
+    void postDecode(T instance);
+
+    /**
+     * Called just before encoding
+     * @param instance
+     */
+    void preEncode(T instance);
+
+    @Override
+    default void verifyFieldsNotNamedLikeAnyDiscriminatorKey(Set<String> propertyNames) throws IllegalArgumentException {
+        for (String propertyName : propertyNames) {
+            MappedField mappedField = getMappedField(propertyName);
+            if (mappedField != null) {
+                LOGGER.error("A field {} within {} is named like one of the discriminator keys {}", mappedField.getMappedFieldName(), getEncoderClass(), propertyNames);
+                throw new IllegalArgumentException("A field " + mappedField.getMappedFieldName() + " within " + getEncoderClass() + " is named like one of the discriminator keys " + propertyNames);
+
+            }
+        }
+    }
 }

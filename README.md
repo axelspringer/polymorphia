@@ -138,6 +138,16 @@ Alternatively you could mark those properties with [@Transient](src/main/java/de
 Note that decoding into POJOs that are not registered within the codec does not work.  
 A [NonRegisteredModelClassException](src/main/java/de/bild/codec/NonRegisteredModelClassException.java) will be thrown.
 
+
+## Application Id generation
+The mongo java driver allows for application id generation. In general to enable this feature, the mongo java driver requests the codec responsible for an entity to implement org.bson.codecs.CollectibleCodec. This is handled transparently within Polymorphia and you do not need to care about.   
+
+Within your pojo class you can annotate a **single** property with [@Id(collectible=true, value = CustomIdGenerator.class)](src/main/java/de/bild/codec/annotations/Id.java)
+When the codec for this pojo is being built and such an Id annotated field is found, the final codec will be wrapped into a java.lang.reflect.Proxy that implements the org.bson.codecs.CollectibleCodec interface.
+If your Pojo is part of a polymorphic structure, one or all of your subclasses within that structure can allow for application id generation. Each subclass can generate individual Ids of different types. The mongo database is capable of handling different ids in one collection.
+The PolymorphicReflectionCodec takes care of this and will implement the CollectibleCodec interface if (and only if) at least one PolymorphicCodec (one for each sub type) is found to be collectible. 
+
+
 ## Updating entities
 Updating entities is straight forward.
 
@@ -177,8 +187,6 @@ You may wonder, why different annotations can be defined to ignore types. As ou 
 
 ```
 
-
-
 ## Advanced usage
 
 If you have a data structure within your mongo whereby you are not exactly sure what fields are declared, but you know 
@@ -198,7 +206,20 @@ public class MapWithSpecialFieldsPojo extends Document implements SpecialFieldsM
 }
 ```
 
-If you need fine grained control over deserialization and serialization register a CodecResolver.  
+
+## Hooks for custom codecs
+
+If you want to provide your own serialization and deserialization codecs but at the same time want to benefit from Polymorphias capabilities 
+to map polymorphic structures, you can chain your custom codecs by registering a [CodecResolver](src/main/java/de/bild/codec/CodecResolver.java) when building 
+the [PojoCodecProvider](src/main/java/de/bild/codec/PojoCodecProvider.java)  
+These codecs however need to implement a specialization of org.bson.codecs.Codec namely [PolymorphicCodec](src/main/java/de/bild/codec/PolymorphicCodec.java)   
+This interface adds the following features:
+ * handles discriminator issues like check for fields names that must not be equal to any discriminator key
+ * provides methods to encode any additional fields besides the discriminator  
+ * copies the method signatures of org.bson.codecs.CollectibleCodec but without implementing CollectibleCodec (The reason is explained in the section [Application Id generation])
+   * this enables your codec to generate application ids
+ * provides methods to instantiate your entities and set default values
+
 For an example of usage @see [CodecResolverTest](src/test/java/de/bild/codec/CodecResolverTest.java)
 
 ```java
@@ -213,19 +234,49 @@ PojoCodecProvider.builder()
     .build()
 ```
 
-## Default values
-For now the codecs that encode collections(set, list) and maps encode __null__ values as empty collections or empty maps.
-It might be a future improvement to better control this behaviour as it might be undesired to have empty (null) fields persisted at all. 
-The idea is to provide an annotation that describes the default value in case the field value is null.  
-Feel free to add this functionality. 
-```java
-public class Pojo {
-    //attention: this code needs to be written
-    @Default(DefaultValueProvider.class)
-    Integer aField;
-}
-```
+### [TypeCodecProvider](src/main/java/de/bild/codec/TypeCodecProvider.java)
+If you desire to register a codec provider that can provide a codec for any given type (not just for java.lang.Class) you may register a [TypeCodecProvider](src/main/java/de/bild/codec/TypeCodecProvider.java)   
+For an example of usage have a look at [TypeCodecProviderTest](src/test/java/de/bild/codec/typecodecprovider/TypeCodecProviderTest.java)
+You can override any fully specified type or generic type. You can e.g. register alternative codecs for Set or List or Map.   
+In contrast to org.bson.codecs.configuration.CodecProvider the registered [TypeCodecProvider](src/main/java/de/bild/codec/TypeCodecProvider.java) accepts any java.lang.reflect.Type
+Please be aware of the fact, that these TypeCodecProviders will only take effect when resolved within PojoCodecProvider. 
 
+
+## Default values
+As of Polymoprhia version 2.0.0 the developer has better control over null-handling while encoding to the database. Additionally a developer can control default values when decoding undefined fields.
+Use [EncodeNulls](de.bild.codec.annotations.EncodeNulls) to decide whether you need nulls written to the database.     
+You can convert null values into defaults before the encoder kicks in. Use [EncodeNullHandlingStrategy](de.bild.codec.annotations.EncodeNullHandlingStrategy) to assign values to null fields if desired.
+
+
+While decoding fields that are present in the pojo but have undefined values in the database (evolution of pojos!) you can assign a [DecodeUndefinedHandlingStrategy](de.bild.codec.annotations.DecodeUndefinedHandlingStrategy).
+
+The mentioned annotations can be used at class level and field level. Field level annotations overrule class annotations. It is also possible to set global behaviour for these configurations. When building your [PojoCodecProvider](src/main/java/de/bild/codec/PojoCodecProvider.java) use the Builder methods to control the global defaults.
+* de.bild.codec.PojoCodecProvider.Builder#encodeNullHandlingStrategy(Strategy)  -> defaults to CODEC (historical reasons)
+* de.bild.codec.PojoCodecProvider.Builder#decodeUndefinedHandlingStrategy(Strategy) -> defaults to KEEP_POJO_DEFAULT
+* de.bild.codec.PojoCodecProvider.Builder#encodeNulls(boolean) -> defaluts to false
+
+Have a look at [NullHandlingTest](src/test/java/de/bild/codec/NullHandlingTest.java) for an example.
+
+```java
+
+PojoCodecProvider.builder()
+        .register(NullHandlingTest.class)
+        .encodeNulls(false)
+        .decodeUndefinedHandlingStrategy(DecodeUndefinedHandlingStrategy.Strategy.KEEP_POJO_DEFAULT)
+        .encodeNullHandlingStrategy(EncodeNullHandlingStrategy.Strategy.KEEP_NULL)
+        .build()
+                                    
+
+    @EncodeNulls(false) 
+    public class Pojo {
+        @DecodeUndefinedHandlingStrategy(DecodeUndefinedHandlingStrategy.Strategy.CODEC)
+        Integer aField;
+  
+        @DecodeUndefinedHandlingStrategy(DecodeUndefinedHandlingStrategy.Strategy.SET_TO_NULL)
+        @EncodeNulls         
+        String anotherField;
+    }
+```
 
 ## Release Notes
 
@@ -235,7 +286,7 @@ Release notes are available [release_notes.md](release_notes.md).
 <dependency>
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>1.7.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 

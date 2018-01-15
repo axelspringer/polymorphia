@@ -58,7 +58,6 @@ public abstract class CollectionTypeCodec<C extends Collection<V>, V> extends Ab
         writer.writeEndArray();
     }
 
-    @Override
     public C defaultInstance() {
         return newInstance();
     }

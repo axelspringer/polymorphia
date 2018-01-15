@@ -1,6 +1,17 @@
 Release Notes
 =======
 
+##2.0.0
+* Improved error checking while application id generation
+* add support to register codecs for any arbitrary type -> de.bild.codec.TypeCodecProvider
+* support for SortedSet added
+* support for polymorphic codecs that do not need to be ReflectionCodecs  -> PolymorphicCodec CodecResolver.getCodec(...)
+* improved null-value handling: now nulls can be encoded as nulls or nulls are not written at all -> de.bild.codec.annotations.EncodeNulls
+* added annotation driven null value handling while encoding -> de.bild.codec.annotations.EncodeNullHandlingStrategy
+* added annotation driven undefined value handling while decoding -> de.bild.codec.annotations.DecodeUndefinedHandlingStrategy
+
+
+
 ##1.7.0
 
 added support to ignore model classes in scanned packages

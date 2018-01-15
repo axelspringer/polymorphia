@@ -6,15 +6,17 @@ import org.bson.codecs.Codec;
 
 
 /**
- * All codecs within polymorphia would implement this interface.
+ * All codecs used within polymorphia need to implement this interface.
+ *
+ *
  * @param <T> the value type
  */
 public interface TypeCodec<T> extends Codec<T> {
 
-    default T newInstance() {
-        return null;
-    }
-
+    /**
+     * Override this method if your Codec needs to supply default values as replacements for null values.
+     * @return null or a default value
+     */
     default T defaultInstance() {
         return null;
     }
