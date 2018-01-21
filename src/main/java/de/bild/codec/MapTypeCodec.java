@@ -8,8 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 public abstract class MapTypeCodec<K, V> extends AbstractTypeCodec<Map<K, V>> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ComplexMapTypeCodec.class);
@@ -23,6 +22,9 @@ public abstract class MapTypeCodec<K, V> extends AbstractTypeCodec<Map<K, V>> {
     @Override
     protected Constructor<Map<K, V>> getDefaultConstructor(Class<Map<K, V>> clazz) {
         if (clazz.isInterface()) {
+            if (SortedMap.class.isAssignableFrom(clazz)) {
+                return super.getDefaultConstructor((Class) TreeMap.class);
+            }
             return super.getDefaultConstructor((Class) LinkedHashMap.class);
         }
         return super.getDefaultConstructor(clazz);

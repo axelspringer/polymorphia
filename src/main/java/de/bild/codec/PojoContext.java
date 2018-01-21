@@ -42,9 +42,13 @@ public class PojoContext {
     private static final TypeCodecProvider DEFAULT_TYPE_CODEC_PROVIDER = new TypeCodecProvider() {
         @Override
         public <T> Codec<T> get(Type type, TypeCodecRegistry typeCodecRegistry) {
-            // byte arrays are handled well by the mongo java driver
             if (TypeUtils.isArrayType(type)) {
-                return new ArrayCodec(type, typeCodecRegistry);
+                Codec<T> primitiveArrayCodec = ArrayCodec.PrimitiveArrayCodec.get(ReflectionHelper.extractRawClass(type));
+                if (primitiveArrayCodec != null) {
+                    return primitiveArrayCodec;
+                } else {
+                    return new ArrayCodec(type, typeCodecRegistry);
+                }
             } else if (type instanceof TypeVariable) {
                 throw new IllegalArgumentException("This registry (and probably no other one as well) can not handle generic type variables.");
             } else if (type instanceof WildcardType) {
@@ -58,8 +62,7 @@ public class PojoContext {
                 return (Codec<T>) SHORT_CODEC;
             } else if (Byte.class.equals(type)) {
                 return (Codec<T>) BYTE_CODEC;
-            }
-            else if (TypeUtils.isAssignable(type, SpecialFieldsMap.class)) {
+            } else if (TypeUtils.isAssignable(type, SpecialFieldsMap.class)) {
                 return new SpecialFieldsMapCodec(type, typeCodecRegistry);
             }
 
@@ -83,10 +86,10 @@ public class PojoContext {
     };
 
 
-    public PojoContext(final TypesModel typesModel,
-                       List<CodecResolver> codecResolvers,
-                       List<TypeCodecProvider> typeCodecProviders,
-                       CodecConfiguration codecConfiguration) {
+    PojoContext(final TypesModel typesModel,
+                List<CodecResolver> codecResolvers,
+                List<TypeCodecProvider> typeCodecProviders,
+                CodecConfiguration codecConfiguration) {
         this.typesModel = typesModel;
         this.codecResolvers = codecResolvers;
         this.typeCodecProviders = typeCodecProviders;
@@ -107,9 +110,17 @@ public class PojoContext {
 
         @Override
         public <T> Codec<T> getCodec(Type type) {
-            Codec codec = pojoContext.getCodec(type, this);
-            if (codec == null) {
+            Codec<T> codec;
+            //if type is a class, we ask the mongo codecregistry if it provides a specialized codec
+            // side note: this PojoContext is chained within this codecRegistry and gets asked as well!!
+            if (type instanceof Class) {
                 codec = codecRegistry.get(ReflectionHelper.extractRawClass(type));
+            } else {
+                // if type is any other type than {@link Class}, there is no reason to ask codecRegistry
+                // directly as anyway the class would need to be extracted from the type and we would loose type information
+                // so in this case we do not ask the codecRegistry for potential more specialized codecs.
+                // we ask the pojoContext directly
+                codec = pojoContext.getCodec(type, this);
             }
             return codec;
         }
@@ -162,7 +173,7 @@ public class PojoContext {
      *
      * @param type              the value type
      * @param typeCodecRegistry codec registry that can handle any type including parameterizd types, generic arrays, etc
-     * @return ReflectionCodec if responsible resolver si found
+     * @return PolymorphicCodec if responsible resolver is found
      */
     public synchronized <T> PolymorphicCodec<T> resolve(Type type, TypeCodecRegistry typeCodecRegistry) {
         PolymorphicCodec<T> codec;
@@ -183,7 +194,7 @@ public class PojoContext {
     private static class EnumReflectionCodecWrapper<T extends Enum<T>> implements PolymorphicCodec<T> {
         final Codec<T> codec;
 
-        public EnumReflectionCodecWrapper(Codec<T> codec) {
+        EnumReflectionCodecWrapper(Codec<T> codec) {
             this.codec = codec;
         }
 
@@ -192,9 +203,7 @@ public class PojoContext {
                 String fieldName = reader.readName();
                 if ("enum".equals(fieldName)) {
                     return codec.decode(reader, decoderContext);
-                }
-                else
-                {
+                } else {
                     reader.skipValue();
                 }
             }
@@ -243,12 +252,7 @@ public class PojoContext {
             }
         }
 
-        // byte[] will be handled by the mongo driver
-        if (type.equals(byte[].class)) {
-            return null;
-        }
-        // enums will be handled by a general enum codec registered as CodecProvider within CodecRegistry
-        else if (TypeUtils.isAssignable(type, Enum.class)) {
+        if (TypeUtils.isAssignable(type, Enum.class)) {
             return null;
         }
 
@@ -258,7 +262,7 @@ public class PojoContext {
             return codec;
         }
 
-        /**
+        /*
          * now try pojo codec with potentially polymorphic structures
          */
         Set<Type> validTypesForType = typesModel.getAssignableTypesWithinClassHierarchy(type);
@@ -282,7 +286,6 @@ public class PojoContext {
 
 
     /**
-     *
      * @param type to be checked for polymorphic structure
      * @return true, if type represents a polymorphic type structure
      */
@@ -316,7 +319,7 @@ public class PojoContext {
         private volatile Codec<T> wrapped;
         private final TypeCodecRegistry typeCodecRegistry;
 
-        public LazyCodec(final Type type, TypeCodecRegistry typeCodecRegistry) {
+        LazyCodec(final Type type, TypeCodecRegistry typeCodecRegistry) {
             this.type = type;
             this.typeCodecRegistry = typeCodecRegistry;
         }

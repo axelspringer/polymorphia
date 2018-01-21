@@ -21,4 +21,13 @@ public class FieldTypePair {
     public Type getRealType() {
         return realType;
     }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("FieldTypePair{");
+        sb.append("field=").append(field);
+        sb.append(", realType=").append(realType);
+        sb.append('}');
+        return sb.toString();
+    }
 }

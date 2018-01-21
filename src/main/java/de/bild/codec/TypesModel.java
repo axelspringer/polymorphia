@@ -188,7 +188,7 @@ public class TypesModel {
         ClassHierarchyNode classHierarchyNode = null;
         Class<?> currentClass = ReflectionHelper.extractRawClass(type);
         // walk up class hierarchy until a class within the class model is found
-        while (classHierarchyNode == null && currentClass != null && !Object.class.equals(currentClass)) {
+        while (classHierarchyNode == null && currentClass != null) {
             classHierarchyNode = classHierarchy.get(currentClass);
             currentClass = currentClass.getSuperclass();
         }

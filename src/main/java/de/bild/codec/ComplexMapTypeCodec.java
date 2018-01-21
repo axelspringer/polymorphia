@@ -24,8 +24,11 @@ public class ComplexMapTypeCodec<K, V> extends MapTypeCodec<K, V> {
 
     @Override
     public Map<K, V> decode(BsonReader reader, DecoderContext decoderContext) {
-        Map<K, V> map = newInstance();
-        if (BsonType.ARRAY.equals(reader.getCurrentBsonType())) {
+        Map<K, V> map = null;
+        if (BsonType.NULL.equals(reader.getCurrentBsonType())) {
+            reader.skipValue();
+        } else if (BsonType.ARRAY.equals(reader.getCurrentBsonType())) {
+            map = newInstance();
             reader.readStartArray();
             while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                 if (BsonType.DOCUMENT.equals(reader.getCurrentBsonType())) {
@@ -57,7 +60,12 @@ public class ComplexMapTypeCodec<K, V> extends MapTypeCodec<K, V> {
             writer.writeName("key");
             keyTypeCodec.encode(writer, entry.getKey(), encoderContext);
             writer.writeName("value");
-            valueTypeCodec.encode(writer, entry.getValue(), encoderContext);
+            V value = entry.getValue();
+            if (value != null) {
+                valueTypeCodec.encode(writer, value, encoderContext);
+            } else {
+                writer.writeNull();
+            }
             writer.writeEndDocument();
         }
         writer.writeEndArray();

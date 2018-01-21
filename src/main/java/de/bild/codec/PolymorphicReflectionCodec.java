@@ -156,10 +156,15 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
                     LOGGER.debug("Found single possible codec {} for type {}", codec, getEncoderClass());
                 }
                 else {
-                    LOGGER.warn("Legacy handling to resolve entities in db without discriminator failed as there are (now?) more than one codecs available {}. One option is to use @DiscriminatrFallback at the legacy class or to add discriminators to the entities within the database. For now, skipping value.", classToCodec);
-                    // TODO is skipping the right way to handle this? This might lead to lost data if a read object is rewritten to the database again...
-                    reader.skipValue();
-                    return null;// todo: when switching to mongo db 3.6 an exception should be thrown instead of returning null
+                    LOGGER.info("Legacy handling to resolve entities in db without discriminator failed as there are (now?) more than one codecs available {}. One option is to use @DiscriminatrFallback at the legacy class or to add discriminators to the entities within the database. For now, return least specific codec.", classToCodec);
+                    codec = classToCodec.get(getEncoderClass());
+                    // if codec is still null at this point, something is broken -> should not happen
+                    if (codec == null) {
+                        LOGGER.warn("Skipping value. Can not determine codec for class {} from available codecs {}", getEncoderClass(), classToCodec);
+                        reader.skipValue();
+                        return null;// todo: when switching to mongo db 3.6 an exception should be thrown instead of returning null, so this entity can be skipped
+                    }
+
                 }
             }
         }
@@ -207,7 +212,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
      * @return a codec responsible for a valid class within the class hierarchy
      */
     public PolymorphicCodec<T> getCodecForClass(Class<?> clazz) {
-        if (clazz == null || Object.class.equals(clazz)) {
+        if (clazz == null) {
             return null;
         }
         PolymorphicCodec<T> codec = classToCodec.get(clazz);

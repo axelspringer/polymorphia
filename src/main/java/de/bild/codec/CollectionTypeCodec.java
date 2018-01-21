@@ -34,8 +34,11 @@ public abstract class CollectionTypeCodec<C extends Collection<V>, V> extends Ab
 
     @Override
     public C decode(BsonReader reader, DecoderContext decoderContext) {
-        C collection = newInstance();
-        if (BsonType.ARRAY.equals(reader.getCurrentBsonType())) {
+        C collection = null;
+        if (BsonType.NULL.equals(reader.getCurrentBsonType())) {
+            reader.skipValue();
+        } else if (BsonType.ARRAY.equals(reader.getCurrentBsonType())) {
+            collection = newInstance();
             reader.readStartArray();
             while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                 V decode = typeCodec.decode(reader, decoderContext);
@@ -50,10 +53,14 @@ public abstract class CollectionTypeCodec<C extends Collection<V>, V> extends Ab
     }
 
     @Override
-    public void encode(BsonWriter writer, C value, EncoderContext encoderContext) {
+    public void encode(BsonWriter writer, C values, EncoderContext encoderContext) {
         writer.writeStartArray();
-        for (V o : value) {
-            typeCodec.encode(writer, o, encoderContext);
+        for (V value : values) {
+            if (value != null) {
+                typeCodec.encode(writer, value, encoderContext);
+            } else {
+                writer.writeNull();
+            }
         }
         writer.writeEndArray();
     }

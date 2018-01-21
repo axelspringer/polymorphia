@@ -157,6 +157,11 @@ public class CodecResolverTest {
             super(type, typeCodecRegistry, codecConfiguration);
             MappedField mappedField = getMappedField("meta");
             Codec metaCodec = mappedField.getCodec();
+
+            while (metaCodec instanceof DelegatingCodec) {
+                DelegatingCodec<T> delegatingCodec = (DelegatingCodec<T>)metaCodec;
+                metaCodec = delegatingCodec.getDelegate();
+            }
             if (metaCodec instanceof PolymorphicReflectionCodec) {
                 PolymorphicReflectionCodec<MetaData> polymorphicMetaCodec = (PolymorphicReflectionCodec<MetaData>) metaCodec;
                 this.documentMetaCodec = (ReflectionCodec<MetaData>)polymorphicMetaCodec.getCodecForClass(mappedField.getField().getType());

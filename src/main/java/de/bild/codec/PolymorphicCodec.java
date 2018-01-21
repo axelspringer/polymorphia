@@ -14,7 +14,12 @@ import java.util.Set;
  *
  * Provides functionality for handling polymorphic structures.
  * decode() as well as encode() have default implementations within this interface.
- *  *
+ *
+ * Attention: The name of this interface may be misleading.
+ * Any Codec that might be part of a polymorphic codec structure needs to implement this interface,
+ * as the codec needs to answer certain questions, most obviously {@link #verifyFieldsNotNamedLikeAnyDiscriminatorKey}
+ * A map of {@link PolymorphicCodec} is part of {@link PolymorphicReflectionCodec} which itself does not implement {@link PolymorphicCodec}
+ *
  * @param <T> the value type
  */
 public interface PolymorphicCodec<T> extends TypeCodec<T> {

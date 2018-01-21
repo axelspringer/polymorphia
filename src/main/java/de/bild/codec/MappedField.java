@@ -202,7 +202,9 @@ public class MappedField<T, F> {
     }
 
     public void encode(BsonWriter writer, T instance, EncoderContext encoderContext) {
-        LOGGER.debug("Encode field : " + getMappedFieldName());
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Encode field : {} - with codec {}", getMappedFieldName(), field.getType().isPrimitive() ? primitiveType : codec);
+        }
         if (field.getType().isPrimitive()) {
             if (isLockingVersionField()) {
                 writeLockingVersion(writer, instance);
@@ -248,7 +250,9 @@ public class MappedField<T, F> {
     }
 
     public void decode(BsonReader reader, T instance, DecoderContext decoderContext) {
-        LOGGER.debug("Decode field : " + getMappedFieldName() + " Signature: " + fieldTypePair.getRealType());
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Decode field : {}({}) - codec : {}", getMappedFieldName(), fieldTypePair.getRealType(), field.getType().isPrimitive() ? primitiveType : codec);
+        }
         if (field.getType().isPrimitive()) {
             if (reader.getCurrentBsonType() == BsonType.NULL || reader.getCurrentBsonType() == BsonType.UNDEFINED) {
                 reader.skipValue();
@@ -256,14 +260,12 @@ public class MappedField<T, F> {
                 primitiveType.decode(reader, instance, decoderContext, this);
             }
         } else if (codec != null) {
-            if (reader.getCurrentBsonType() == BsonType.NULL ) {
+            if (BsonType.NULL.equals(reader.getCurrentBsonType())) {
                 reader.readNull();
                 setFieldValue(instance, null);
-            }
-            else if (reader.getCurrentBsonType() == BsonType.UNDEFINED) {
+            } else if (BsonType.UNDEFINED.equals(reader.getCurrentBsonType())) {
                 reader.skipValue();
-            }
-            else {
+            } else {
                 F decoded = codec.decode(reader, decoderContext);
                 setFieldValue(instance, decoded);
             }

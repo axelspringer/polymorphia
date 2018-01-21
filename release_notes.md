@@ -1,5 +1,15 @@
 Release Notes
 =======
+## 2.1.0
+* rewrite of ArrayCodec
+* all container like codecs (CollectionTypeCodec, MapTypeCodec, ArrayCodec) now support null values
+* java.lang.Object can be used as type in pojos - all classes to be encoded/decoded must be registered to the PojoCodecProvider
+* improved logging when no codec can be found for a field
+* a DefaultCodecRegistry similar to the one the mongo driver provides can be retrieved via PojoCodecProvider.getDefaultCodecRegistry()
+* SortedMap is now supported as pap-type
+* if a CollectibleCodec-Proxy is being returned from the PojoCodecProvider, all interfaces of the delegating codec are exposed as well
+* the new interface DelegatingCodec - CollectibleCodec-Proxies can be asked for their delegate
+* when resolving Codecs for Class-types within the pojo-context, the CodecRegistry-chain will be asked. This allows for overriding codecs for Class types. 
 
 ##2.0.0
 * Improved error checking while application id generation

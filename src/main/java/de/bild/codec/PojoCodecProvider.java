@@ -1,26 +1,31 @@
 package de.bild.codec;
 
 
-import com.google.common.reflect.AbstractInvocationHandler;
+import com.mongodb.DBObjectCodecProvider;
+import com.mongodb.DBRefCodecProvider;
+import com.mongodb.MongoClient;
+import com.mongodb.client.gridfs.codecs.GridFSFileCodecProvider;
+import com.mongodb.client.model.geojson.codecs.GeoJsonCodecProvider;
 import de.bild.codec.annotations.DecodeUndefinedHandlingStrategy;
 import de.bild.codec.annotations.EncodeNullHandlingStrategy;
 import org.bson.BsonReader;
 import org.bson.BsonValue;
 import org.bson.BsonWriter;
-import org.bson.codecs.Codec;
-import org.bson.codecs.CollectibleCodec;
-import org.bson.codecs.DecoderContext;
-import org.bson.codecs.EncoderContext;
+import org.bson.codecs.*;
 import org.bson.codecs.configuration.CodecProvider;
+import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.*;
+
+import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 
 /**
  * Provides a codec for Pojos
@@ -30,6 +35,48 @@ public class PojoCodecProvider implements CodecProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(PojoCodecProvider.class);
     private final TypesModel typesModel;
     private final PojoContext pojoContext;
+
+    private static final CodecRegistry DEFAULT_CODEC_REGISTRY =
+            CodecRegistries.fromRegistries(
+                    CodecRegistries.fromCodecs(
+                            new BinaryCodec(),
+                            new BooleanCodec(),
+                            new DateCodec(),
+                            new DoubleCodec(),
+                            new IntegerCodec(),
+                            new LongCodec(),
+                            new MinKeyCodec(),
+                            new MaxKeyCodec(),
+                            new CodeCodec(),
+                            new Decimal128Codec(),
+                            new ObjectIdCodec(),
+                            new CharacterCodec(),
+                            new StringCodec(),
+                            new SymbolCodec(),
+                            new UuidCodec(),
+                            new PatternCodec(),
+                            new ByteArrayCodec(),
+                            new AtomicBooleanCodec(),
+                            new AtomicIntegerCodec(),
+                            new AtomicLongCodec()),
+                    fromProviders(new DBRefCodecProvider(),
+                            new DocumentCodecProvider(),
+                            new DBObjectCodecProvider(),
+                            new BsonValueCodecProvider(),
+                            new GeoJsonCodecProvider(),
+                            new GridFSFileCodecProvider()));
+
+    /**
+     * A CodecReggistry containing many default codecs from the java mongo driver.
+     * Some codecs are used in {@link MongoClient#getDefaultCodecRegistry()} are omitted
+     * {@link FloatCodec}, {@link ByteCodec}, {@link ShortCodec} are omitted, since they do not support
+     * {@link Codec#decode(BsonReader, DecoderContext)} prior to mongo java driver version 3.5
+     *
+     * @return some generally needed useful codecs needed for to decode pojos (String, Integer, etc.)
+     */
+    public static CodecRegistry getDefaultCodecRegistry() {
+        return DEFAULT_CODEC_REGISTRY;
+    }
 
     PojoCodecProvider(final Set<Class<?>> classes,
                       final Set<String> packages,
@@ -59,10 +106,15 @@ public class PojoCodecProvider implements CodecProvider {
             // generate dynamic proxy to add CollectibleCodec functionality
             if (typeCodec.isCollectible()) {
                 LOGGER.debug("Enhancing {} to be collectible codec.", typeCodec);
-                Class[] proxyInterfaces = new Class[]{CollectibleCodec.class};
+                // For easy of use, adding all implemented interfaces to the proxy, so the proxy can be used for most use cases
+                // Unfortunately the functionalities of the underlying concrete codec class will be missing.
+                ArrayList<Class<?>> proxyInterfaceList = new ArrayList<>(Arrays.asList(typeCodec.getClass().getInterfaces()));
+                proxyInterfaceList.add(CollectibleCodec.class);
+                proxyInterfaceList.add(DelegatingCodec.class); // so users can retrieve the delegating codec form the proxy.
+
                 CollectibleCodec collectibleCodec = (CollectibleCodec) Proxy.newProxyInstance(
                         PojoCodecProvider.class.getClassLoader(),
-                        proxyInterfaces,
+                        proxyInterfaceList.toArray(new Class<?>[1]),
                         new CollectibleCodecDelegator(typeCodec));
 
                 return collectibleCodec;
@@ -74,24 +126,29 @@ public class PojoCodecProvider implements CodecProvider {
     /**
      * delegator for CollectibleCodec
      */
-    private static class CollectibleCodecDelegator<T> extends AbstractInvocationHandler implements CollectibleCodec<T> {
+    private static class CollectibleCodecDelegator<T> implements InvocationHandler, CollectibleCodec<T>, DelegatingCodec<T> {
         private final TypeCodec<T> delegatingCodec;
+        private static final Object[] NO_ARGS = {};
 
         public CollectibleCodecDelegator(TypeCodec<T> delegatingCodec) {
             this.delegatingCodec = delegatingCodec;
         }
 
-
         @Override
-        protected Object handleInvocation(Object proxy, Method method, Object[] args) throws Throwable {
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
             try {
-                return method.invoke(this, args);
+                if (method.getDeclaringClass() == CollectibleCodec.class || method.getDeclaringClass() == DelegatingCodec.class) {
+                    return method.invoke(this, args);
+                } else {
+                    return method.invoke(delegatingCodec, args);
+                }
             } catch (IllegalAccessException | InvocationTargetException e) {
                 LOGGER.warn("An exception was caught while invoking the delegate {} with args {}", method, args);
                 LOGGER.debug("Original exception when invoking target.", e);
                 // rethrowing cause instead of invocationexception
                 throw e.getCause();
             }
+
         }
 
         @Override
@@ -125,13 +182,8 @@ public class PojoCodecProvider implements CodecProvider {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            return super.equals(obj);
-        }
-
-        @Override
-        public int hashCode() {
-            return super.hashCode();
+        public TypeCodec<T> getDelegate() {
+            return delegatingCodec;
         }
     }
 
@@ -170,6 +222,7 @@ public class PojoCodecProvider implements CodecProvider {
 
         /**
          * In case you need to register
+         *
          * @param typeCodecProviders
          * @return
          */
@@ -196,6 +249,7 @@ public class PojoCodecProvider implements CodecProvider {
             this.encodeNulls = encodeNulls;
             return this;
         }
+
         /**
          * A CodecResolver is supposed to provide specialized codecs in case the default implementation
          * {@link BasicReflectionCodec} is not sufficient

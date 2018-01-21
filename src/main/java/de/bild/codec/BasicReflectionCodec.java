@@ -11,6 +11,7 @@ import org.bson.BsonValue;
 import org.bson.BsonWriter;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
+import org.bson.codecs.configuration.CodecConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,13 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
         for (final FieldTypePair fieldTypePair : ReflectionHelper.getDeclaredAndInheritedFieldTypePairs(type, true)) {
             Field field = fieldTypePair.getField();
             if (!isIgnorable(field)) {
-                MappedField<T, Object> mappedField = new MappedField<>(fieldTypePair, encoderClass, typeCodecRegistry, codecConfiguration);
+                MappedField<T, Object> mappedField = null;
+                try {
+                    mappedField = new MappedField<>(fieldTypePair, encoderClass, typeCodecRegistry, codecConfiguration);
+                } catch (CodecConfigurationException e) {
+                    LOGGER.error("No codec found for field {}", field);
+                    throw e;
+                }
                 persistenceFields.put(mappedField.getMappedFieldName(), mappedField);
                 if (mappedField.isIdField()) {
                     if (idField == null) {

@@ -1,6 +1,5 @@
 package de.bild.codec;
 
-import com.mongodb.MongoClient;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
@@ -34,11 +33,12 @@ public class ListTypeCodecTest {
         @Bean()
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
+                    PojoCodecProvider.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder().register(ListTypeCodecTest.class).build()
-                    ),
-                    MongoClient.getDefaultCodecRegistry());
+                    )
+            );
         }
     }
 
@@ -91,9 +91,17 @@ public class ListTypeCodecTest {
     @Test
     public void testDifferentTypes() {
         Codec<SetPojo> setPojoCodec = codecRegistry.get(SetPojo.class);
+
+        if (setPojoCodec instanceof DelegatingCodec) {
+            setPojoCodec = ((DelegatingCodec) setPojoCodec).unWrapRecursively();
+        }
         Assert.assertTrue(setPojoCodec instanceof BasicReflectionCodec);
-        BasicReflectionCodec<SetPojo> basicReflectionCodec = (BasicReflectionCodec<SetPojo>)setPojoCodec;
-        Constructor<Set<Integer>> constructor = ((SetTypeCodec<Set<Integer>, Integer>) basicReflectionCodec.getMappedField("integerSortedSet").getCodec()).defaultConstructor;
+        BasicReflectionCodec<SetPojo> basicReflectionCodec = (BasicReflectionCodec<SetPojo>) setPojoCodec;
+        Codec integerSortedSetCodec = basicReflectionCodec.getMappedField("integerSortedSet").getCodec();
+        if (integerSortedSetCodec instanceof DelegatingCodec) {
+            integerSortedSetCodec = ((DelegatingCodec)integerSortedSetCodec).unWrapRecursively();
+        }
+        Constructor<Set<Integer>> constructor = ((SetTypeCodec<Set<Integer>, Integer>) integerSortedSetCodec).defaultConstructor;
         Assert.assertTrue(TreeSet.class.equals(constructor.getDeclaringClass()));
     }
 }

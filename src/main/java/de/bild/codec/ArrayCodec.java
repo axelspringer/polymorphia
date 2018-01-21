@@ -1,5 +1,6 @@
 package de.bild.codec;
 
+import org.apache.commons.lang3.reflect.TypeUtils;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.BsonWriter;
@@ -11,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,56 +23,17 @@ import java.util.stream.LongStream;
 public class ArrayCodec implements TypeCodec {
     private static final Logger LOGGER = LoggerFactory.getLogger(ArrayCodec.class);
     final Codec arrayElementCodec;
-    final boolean isPrimitive;
-    final Class<?> arrayType;
+    final Class<?> arrayClazz;
 
     public ArrayCodec(Type type, TypeCodecRegistry typeCodecRegistry) {
-        if (type instanceof Class) {
-            Class<?> currentComponentType = (Class) type;
-
-            arrayType = currentComponentType;
-            while (currentComponentType.isArray()) {
-                currentComponentType = currentComponentType.getComponentType();
-            }
-
-            // the mongo driver has an optimized codec for byte arrays hence we do not handle it
-            if (currentComponentType == byte.class) {
-                isPrimitive = true;
-                arrayElementCodec = typeCodecRegistry.getCodec(byte[].class);
-            } else if (currentComponentType.isPrimitive()) {
-                isPrimitive = true;
-                arrayElementCodec = PrimitiveType.get(currentComponentType);
+        if (TypeUtils.isArrayType(type)) {
+            arrayClazz = ReflectionHelper.extractRawClass(type);
+            if (type instanceof GenericArrayType) {
+                GenericArrayType genericArrayType = (GenericArrayType) type;
+                arrayElementCodec = typeCodecRegistry.getCodec(genericArrayType.getGenericComponentType());
             } else {
-                isPrimitive = false;
-                arrayElementCodec = typeCodecRegistry.getCodec(currentComponentType);
+                arrayElementCodec = typeCodecRegistry.getCodec(arrayClazz.getComponentType());
             }
-
-        } else if (type instanceof GenericArrayType) {
-            isPrimitive = false;
-
-            Type currentLevelType = type;
-            int level = 0;
-            while (currentLevelType instanceof GenericArrayType) {
-                currentLevelType = ((GenericArrayType) currentLevelType).getGenericComponentType();
-                level++;
-            }
-
-            Class<?> currentArrayClass = null;
-            if (currentLevelType instanceof ParameterizedType) {
-                currentArrayClass = (Class<?>) ((ParameterizedType) currentLevelType).getRawType();
-            }
-            for (int i = 0; i < level; i++) {
-                currentArrayClass = Array.newInstance(currentArrayClass, 0).getClass();
-            }
-
-            arrayType = currentArrayClass;
-
-            Type genericComponentType = currentLevelType;
-            if (!(genericComponentType instanceof ParameterizedType)) {
-                throw new IllegalArgumentException("Unable to determine array class! " + type);
-            }
-            arrayElementCodec = typeCodecRegistry.getCodec(genericComponentType);
-
         } else {
             throw new IllegalArgumentException("Unknown array type?!" + type);
         }
@@ -80,78 +41,40 @@ public class ArrayCodec implements TypeCodec {
 
     @Override
     public void encode(BsonWriter writer, Object array, EncoderContext encoderContext) {
-        encodeDimension(writer, array, encoderContext, arrayType);
-    }
-
-    private void encodeDimension(BsonWriter writer, Object array, EncoderContext encoderContext, Class<?> componentType) {
-        boolean encodeLastDimension;
-        Class<?> childComponentType = componentType.getComponentType();
-        encodeLastDimension = !childComponentType.isArray();
-
-        if (childComponentType == byte.class) {
-            arrayElementCodec.encode(writer, array, encoderContext);
-        } else {
-            writer.writeStartArray();
-
-            if (encodeLastDimension) {
-                if (isPrimitive) {
-                    arrayElementCodec.encode(writer, array, encoderContext);
-                } else {
-
-                    for (int i = 0; i < Array.getLength(array); i++) {
-                        arrayElementCodec.encode(writer, Array.get(array, i), encoderContext);
-                    }
-                }
+        writer.writeStartArray();
+        for (int i = 0; i < Array.getLength(array); i++) {
+            Object value = Array.get(array, i);
+            if (value != null) {
+                arrayElementCodec.encode(writer, value, encoderContext);
             } else {
-                for (int i = 0; i < Array.getLength(array); i++) {
-                    encodeDimension(writer, Array.get(array, i), encoderContext, childComponentType);
-                }
+                writer.writeNull();
             }
-            writer.writeEndArray();
+
         }
+        writer.writeEndArray();
+
     }
 
     @Override
     public Object decode(BsonReader reader, DecoderContext decoderContext) {
-        return decodeDimension(reader, decoderContext, arrayType);
-    }
-
-    private Object decodeDimension(BsonReader reader, DecoderContext decoderContext, Class<?> componentType) {
         Object array = null;
-        boolean decodeLastDimension;
-        Class<?> childComponentType = componentType.getComponentType();
-        decodeLastDimension = !childComponentType.isArray();
+        if (BsonType.ARRAY.equals(reader.getCurrentBsonType())) {
 
-        if (childComponentType == byte.class) {
-            array = arrayElementCodec.decode(reader, decoderContext);
-        } else if (BsonType.ARRAY.equals(reader.getCurrentBsonType())) {
+            List list = new ArrayList();
             reader.readStartArray();
-            if (decodeLastDimension) {
-                if (isPrimitive) {
-                    array = arrayElementCodec.decode(reader, decoderContext);
+            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                if (BsonType.NULL.equals(reader.getCurrentBsonType())) {
+                    reader.skipValue();
+                    list.add(null);
                 } else {
-                    List list = new ArrayList();
-                    while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                        list.add(arrayElementCodec.decode(reader, decoderContext));
-                    }
-                    array = Array.newInstance(childComponentType, list.size());
-                    for (int i = 0; i < list.size(); i++) {
-                        Array.set(array, i, list.get(i));
-                    }
-                }
-            } else {
-                List arrayList = new ArrayList();
-                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                    Object decoded = decodeDimension(reader, decoderContext, childComponentType);
-                    arrayList.add(decoded);
-                }
-
-                array = Array.newInstance(childComponentType, arrayList.size());
-                for (int i = 0; i < arrayList.size(); i++) {
-                    Array.set(array, i, arrayList.get(i));
+                    list.add(arrayElementCodec.decode(reader, decoderContext));
                 }
             }
             reader.readEndArray();
+            array = Array.newInstance(arrayClazz.getComponentType(), list.size());
+            for (int i = 0; i < list.size(); i++) {
+                Array.set(array, i, list.get(i));
+            }
         } else {
             LOGGER.warn("Expected {} from reader but got {}. Skipping value.", BsonType.ARRAY, reader.getCurrentBsonType());
             reader.skipValue();
@@ -159,26 +82,50 @@ public class ArrayCodec implements TypeCodec {
         return array;
     }
 
+
     @Override
     public Class getEncoderClass() {
-        return arrayType;
+        return arrayClazz;
     }
 
     /**
      * Codecs for primitive arrays
      */
-    private enum PrimitiveType implements TypeCodec {
+    public enum PrimitiveArrayCodec implements Codec {
+        BYTE(byte.class) {
+            @Override
+            public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
+                for (byte i : (byte[]) value) {
+                    writer.writeInt32(i);
+                }
+            }
+
+            @Override
+            public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
+                List<Byte> arrayList = new ArrayList<>();
+                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                    arrayList.add((byte) reader.readInt32());
+                }
+                byte[] bytes = new byte[arrayList.size()];
+                int i = 0;
+                for (byte aPrimitiveByte : arrayList) {
+                    bytes[i++] = aPrimitiveByte;
+                }
+                return bytes;
+            }
+
+        },
         BOOLEAN(boolean.class) {
             @Override
-            public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+            public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
                 for (boolean i : (boolean[]) value) {
                     writer.writeBoolean(i);
                 }
             }
 
             @Override
-            public Object decode(BsonReader reader, DecoderContext decoderContext) {
-                List<Boolean> arrayList = new ArrayList();
+            public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
+                List<Boolean> arrayList = new ArrayList<>();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                     arrayList.add(reader.readBoolean());
                 }
@@ -192,15 +139,15 @@ public class ArrayCodec implements TypeCodec {
         },
         CHARACTER(char.class) {
             @Override
-            public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+            public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
                 for (char i : (char[]) value) {
                     writer.writeInt32(i);
                 }
             }
 
             @Override
-            public Object decode(BsonReader reader, DecoderContext decoderContext) {
-                List<Character> arrayList = new ArrayList();
+            public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
+                List<Character> arrayList = new ArrayList<>();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                     arrayList.add((char) reader.readInt32());
                 }
@@ -214,15 +161,15 @@ public class ArrayCodec implements TypeCodec {
         },
         FLOAT(float.class) {
             @Override
-            public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+            public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
                 for (float i : (float[]) value) {
                     writer.writeDouble(i);
                 }
             }
 
             @Override
-            public Object decode(BsonReader reader, DecoderContext decoderContext) {
-                List<Float> arrayList = new ArrayList();
+            public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
+                List<Float> arrayList = new ArrayList<>();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                     arrayList.add((float) reader.readDouble());
                 }
@@ -236,17 +183,17 @@ public class ArrayCodec implements TypeCodec {
         },
         INTEGER(int.class) {
             @Override
-            public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+            public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
                 for (int i : (int[]) value) {
                     writer.writeInt32(i);
                 }
             }
 
             @Override
-            public Object decode(BsonReader reader, DecoderContext decoderContext) {
-                /**
+            public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
+                /*
                  * Efficient way of decoding an int[] of unknown size
-                 * InstStream uses an primitive int buffer internally
+                 * IntStream uses an primitive int buffer internally
                  */
                 IntStream.Builder builder = IntStream.builder();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
@@ -257,14 +204,14 @@ public class ArrayCodec implements TypeCodec {
         },
         LONG(long.class) {
             @Override
-            public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+            public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
                 for (long i : (long[]) value) {
                     writer.writeInt64(i);
                 }
             }
 
             @Override
-            public Object decode(BsonReader reader, DecoderContext decoderContext) {
+            public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
                 LongStream.Builder builder = LongStream.builder();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                     builder.add(reader.readInt64());
@@ -274,15 +221,15 @@ public class ArrayCodec implements TypeCodec {
         },
         SHORT(short.class) {
             @Override
-            public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+            public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
                 for (short i : (short[]) value) {
                     writer.writeInt32(i);
                 }
             }
 
             @Override
-            public Object decode(BsonReader reader, DecoderContext decoderContext) {
-                List<Short> arrayList = new ArrayList();
+            public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
+                List<Short> arrayList = new ArrayList<>();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                     arrayList.add((short) reader.readInt32());
                 }
@@ -296,15 +243,15 @@ public class ArrayCodec implements TypeCodec {
         },
         DOUBLE(double.class) {
             @Override
-            public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+            public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
                 for (double i : (double[]) value) {
                     writer.writeDouble(i);
                 }
             }
 
             @Override
-            public Object decode(BsonReader reader, DecoderContext decoderContext) {
-                List<Double> arrayList = new ArrayList();
+            public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
+                List<Double> arrayList = new ArrayList<>();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                     arrayList.add(reader.readDouble());
                 }
@@ -318,11 +265,12 @@ public class ArrayCodec implements TypeCodec {
         };
         final Class<?> primitiveClass;
 
-        static final Map<Class<?>, PrimitiveType> PRIMITIVE_CLASS_TO_TYPE = new HashMap<>();
+        static final Map<Class<?>, PrimitiveArrayCodec> PRIMITIVE_CLASS_TO_TYPE = new HashMap<>();
 
-        PrimitiveType(Class<?> primitiveClass) {
+        PrimitiveArrayCodec(Class<?> primitiveClass) {
             this.primitiveClass = primitiveClass;
         }
+
 
         @Override
         public Class getEncoderClass() {
@@ -331,14 +279,38 @@ public class ArrayCodec implements TypeCodec {
 
 
         static {
-            for (PrimitiveType primitiveType : values()) {
+            for (PrimitiveArrayCodec primitiveType : PrimitiveArrayCodec.values()) {
                 PRIMITIVE_CLASS_TO_TYPE.put(primitiveType.primitiveClass, primitiveType);
             }
         }
 
-        public static PrimitiveType get(Class type) {
-            return PRIMITIVE_CLASS_TO_TYPE.get(type);
+        public static PrimitiveArrayCodec get(Class<?> arrayClass) {
+            if (arrayClass != null) {
+                Class<?> componentType = arrayClass.getComponentType();
+                return PRIMITIVE_CLASS_TO_TYPE.get(componentType);
+            }
+            return null;
         }
 
+
+        protected abstract Object decodeInternal(BsonReader reader, DecoderContext decoderContext);
+
+        protected abstract void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext);
+
+        @Override
+        public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+            writer.writeStartArray();
+            encodeInternal(writer, value, encoderContext);
+            writer.writeEndArray();
+        }
+
+        @Override
+        public Object decode(BsonReader reader, DecoderContext decoderContext) {
+            Object primitiveArray;
+            reader.readStartArray();
+            primitiveArray = decodeInternal(reader, decoderContext);
+            reader.readEndArray();
+            return primitiveArray;
+        }
     }
 }

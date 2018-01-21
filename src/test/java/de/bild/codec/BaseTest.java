@@ -1,11 +1,11 @@
 package de.bild.codec;
 
-import com.mongodb.MongoClient;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.json.JsonMode;
 import org.bson.json.JsonReader;
 import org.bson.json.JsonWriter;
 import org.bson.json.JsonWriterSettings;
@@ -21,7 +21,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.StringWriter;
-import java.util.Arrays;
+import java.util.*;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = BaseTest.class)
@@ -47,33 +47,56 @@ public class BaseTest {
     static final Short SHORT = 34;
     static final Long LONG = 34435556L;
 
-    static final String[] STRINGS = {"hallo", "hi", "hello"};
+    static final String[] STRINGS = {"hallo", "hi", "hello", null, null};
     static final float[] PRIMITIVE_FLOATS = {123f, 456.789f};
     static final int[] PRIMITIVE_INTS = {1, 5, 78, 42, 22, -232, -55, -442};
     static final long[] PRIMITIVE_LONGS = {141L, 212L, -1133L, -131L};
     static final char[] PRIMITIVE_CHARS = {'a', 'ä', '@', '#', '\''};
     static final short[] PRIMITIVE_SHORTS = {255, 0x7FFF, 888};
     static final byte[] PRIMITIVE_BYTES = {12, -0x7F, 0x7F};
+    static final byte[][] PRIMITIVE_BYTES_2 = {{12, -0x7F, 0x7F}, {2, 4, 55}};
     static final double[] PRIMITIVE_DOUBLES = {-0.0000001d, -13131.3d, 4e22, 222};
 
-    static final Float[] FLOATS = {123f, 456.789f};
-    static final Integer[] INTEGERS = {1, 5, 78, 42, 22, -232, -55, -442};
-    static final Long[] LONGS = {141L, 212L, -1133L, -131L};
-    static final Character[] CHARACTERS = {'a', 'ä', '@', '#', '\''};
-    static final Short[] SHORTS = {255, 0x7FFF, 888};
-    static final Byte[] BYTES = {12, -0x7F, 0x7F};
-    static final Double[] DOUBLES = {-0.0000001d, -13131.3d, 4e22, 222d};
+    static final Float[] FLOATS = {123f, 456.789f, null};
+    static final Integer[] INTEGERS = {1, 5, null, 42, 22, -232, -55, -442};
+    static final Long[] LONGS = {141L, 212L, null, -1133L, -131L};
+    static final Character[] CHARACTERS = {'a', 'ä', '@', null, '#', '\''};
+    static final Short[] SHORTS = {255, 0x7FFF, null, 888};
+    static final Byte[] BYTES = {12, -0x7F, null, 0x7F};
+    static final Double[] DOUBLES = {-0.0000001d, null, -13131.3d, 4e22, 222d};
+
+    static final Map<String, Integer>[][] MAPS_ARRAY;
+    static final SortedMap<String, Integer>[] SORTEDMAPS_ARRAY;
+
+    static {
+        Map<String, Integer> map = new HashMap<>();
+        map.put("one", 1);
+        map.put("two", null);
+        SortedMap<String, Integer> sortedMap = new TreeMap<>(map);
+
+        MAPS_ARRAY = new Map[2][3];
+        MAPS_ARRAY[0][1] = map;
+        MAPS_ARRAY[1][2] = sortedMap;
+
+        SORTEDMAPS_ARRAY = new TreeMap[1];
+        SORTEDMAPS_ARRAY[0] = new TreeMap<>();
+        SORTEDMAPS_ARRAY[0].put("zzz", null);
+        SORTEDMAPS_ARRAY[0].put("aaa", 1);
+
+
+    }
 
 
     static class Config {
         @Bean()
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
+                    PojoCodecProvider.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder().register(BaseTest.class).build()
-                    ),
-                    MongoClient.getDefaultCodecRegistry());
+                    )
+            );
         }
     }
 
@@ -105,6 +128,7 @@ public class BaseTest {
         char[] primitiveChars;
         short[] primitiveShorts;
         byte[] primitiveBytes;
+        byte[][] primitiveBytes_2;
         double[] primitiveDoubles;
 
         Float[] floats;
@@ -114,11 +138,13 @@ public class BaseTest {
         Short[] shorts;
         Byte[] bytes;
         Double[] doubles;
+        Map<String, Integer>[][] mapsArray;
+        SortedMap<String, Integer>[] sortedMapArray;
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (!(o instanceof BasePojo)) return false;
 
             BasePojo basePojo = (BasePojo) o;
 
@@ -146,6 +172,7 @@ public class BaseTest {
             if (!Arrays.equals(primitiveChars, basePojo.primitiveChars)) return false;
             if (!Arrays.equals(primitiveShorts, basePojo.primitiveShorts)) return false;
             if (!Arrays.equals(primitiveBytes, basePojo.primitiveBytes)) return false;
+            if (!Arrays.deepEquals(primitiveBytes_2, basePojo.primitiveBytes_2)) return false;
             if (!Arrays.equals(primitiveDoubles, basePojo.primitiveDoubles)) return false;
             // Probably incorrect - comparing Object[] arrays with Arrays.equals
             if (!Arrays.equals(floats, basePojo.floats)) return false;
@@ -160,7 +187,10 @@ public class BaseTest {
             // Probably incorrect - comparing Object[] arrays with Arrays.equals
             if (!Arrays.equals(bytes, basePojo.bytes)) return false;
             // Probably incorrect - comparing Object[] arrays with Arrays.equals
-            return Arrays.equals(doubles, basePojo.doubles);
+            if (!Arrays.equals(doubles, basePojo.doubles)) return false;
+            if (!Arrays.deepEquals(mapsArray, basePojo.mapsArray)) return false;
+            // Probably incorrect - comparing Object[] arrays with Arrays.equals
+            return Arrays.equals(sortedMapArray, basePojo.sortedMapArray);
         }
 
         @Override
@@ -190,6 +220,7 @@ public class BaseTest {
             result = 31 * result + Arrays.hashCode(primitiveChars);
             result = 31 * result + Arrays.hashCode(primitiveShorts);
             result = 31 * result + Arrays.hashCode(primitiveBytes);
+            result = 31 * result + Arrays.deepHashCode(primitiveBytes_2);
             result = 31 * result + Arrays.hashCode(primitiveDoubles);
             result = 31 * result + Arrays.hashCode(floats);
             result = 31 * result + Arrays.hashCode(integers);
@@ -198,6 +229,8 @@ public class BaseTest {
             result = 31 * result + Arrays.hashCode(shorts);
             result = 31 * result + Arrays.hashCode(bytes);
             result = 31 * result + Arrays.hashCode(doubles);
+            result = 31 * result + Arrays.deepHashCode(mapsArray);
+            result = 31 * result + Arrays.hashCode(sortedMapArray);
             return result;
         }
     }
@@ -254,6 +287,7 @@ public class BaseTest {
         basePojo.primitiveShorts = PRIMITIVE_SHORTS;
         basePojo.primitiveBytes = PRIMITIVE_BYTES;
         basePojo.primitiveDoubles = PRIMITIVE_DOUBLES;
+        basePojo.primitiveBytes_2 = PRIMITIVE_BYTES_2;
 
         basePojo.floats = FLOATS;
         basePojo.integers = INTEGERS;
@@ -262,15 +296,18 @@ public class BaseTest {
         basePojo.shorts = SHORTS;
         basePojo.bytes = BYTES;
         basePojo.doubles = DOUBLES;
+        basePojo.mapsArray = MAPS_ARRAY;
+        basePojo.sortedMapArray = SORTEDMAPS_ARRAY;
 
         Codec<BasePojo> primitivePojoCodec = codecRegistry.get(BasePojo.class);
 
         StringWriter stringWriter = new StringWriter();
-        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(true));
+        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(JsonMode.STRICT, true));
         primitivePojoCodec.encode(writer, basePojo, EncoderContext.builder().build());
         LOGGER.info("The encoded json looks like: {}", stringWriter);
         BasePojo readBasePojo = primitivePojoCodec.decode(new JsonReader(stringWriter.toString()), DecoderContext.builder().build());
         Assert.assertEquals(basePojo, readBasePojo);
+        Assert.assertTrue(readBasePojo.sortedMapArray[0] instanceof SortedMap);
     }
 
     @Test

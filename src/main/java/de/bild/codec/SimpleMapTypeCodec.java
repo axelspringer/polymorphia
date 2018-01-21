@@ -21,12 +21,20 @@ public class SimpleMapTypeCodec<V> extends MapTypeCodec<String, V> {
 
     @Override
     public Map<String, V> decode(BsonReader reader, DecoderContext decoderContext) {
-        Map<String, V> map = newInstance();
-        if (BsonType.DOCUMENT.equals(reader.getCurrentBsonType())) {
+        Map<String, V> map = null;
+        if (BsonType.NULL.equals(reader.getCurrentBsonType())) {
+            reader.skipValue();
+        } else if (BsonType.DOCUMENT.equals(reader.getCurrentBsonType())) {
+            map = newInstance();
             reader.readStartDocument();
             while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                 String key = reader.readName();
-                V value = valueTypeCodec.decode(reader, decoderContext);
+                V value = null;
+                if (BsonType.NULL.equals(reader.getCurrentBsonType())) {
+                    reader.skipValue();
+                } else {
+                    value = valueTypeCodec.decode(reader, decoderContext);
+                }
                 map.put(key, value);
             }
             reader.readEndDocument();
@@ -42,7 +50,12 @@ public class SimpleMapTypeCodec<V> extends MapTypeCodec<String, V> {
         writer.writeStartDocument();
         for (Map.Entry<String, V> entry : map.entrySet()) {
             writer.writeName(entry.getKey());
-            valueTypeCodec.encode(writer, entry.getValue(), encoderContext);
+            V value = entry.getValue();
+            if (value != null) {
+                valueTypeCodec.encode(writer, value, encoderContext);
+            } else {
+                writer.writeNull();
+            }
         }
         writer.writeEndDocument();
     }
