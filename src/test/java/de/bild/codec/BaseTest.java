@@ -1,5 +1,6 @@
 package de.bild.codec;
 
+import com.mongodb.MongoClient;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
@@ -91,7 +92,7 @@ public class BaseTest {
         @Bean()
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
-                    PojoCodecProvider.getDefaultCodecRegistry(),
+                    MongoClient.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder().register(BaseTest.class).build()

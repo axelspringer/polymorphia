@@ -8,9 +8,7 @@ import org.apache.commons.lang3.reflect.TypeUtils;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.BsonWriter;
-import org.bson.codecs.Codec;
-import org.bson.codecs.DecoderContext;
-import org.bson.codecs.EncoderContext;
+import org.bson.codecs.*;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +33,20 @@ public class PojoContext {
     private final List<CodecResolver> codecResolvers;
     private final List<TypeCodecProvider> typeCodecProviders;
     private final CodecConfiguration codecConfiguration;
+
+    private static final boolean MONGO_VERSION_LESS_THEN_3_5;
+
+    static {
+        boolean classPojoCodecProviderExists = false;
+        try {
+            Thread.currentThread().getContextClassLoader().loadClass("org.bson.codecs.pojo.PojoCodecProvider");
+            classPojoCodecProviderExists = true;
+        } catch (ClassNotFoundException e) {
+            LOGGER.debug("Assuming a mongo version < 3.5.");
+        }
+
+        MONGO_VERSION_LESS_THEN_3_5 = !classPojoCodecProviderExists;
+    }
 
     /**
      * The TypeCodecProvider for all known standard types
@@ -115,6 +127,18 @@ public class PojoContext {
             // side note: this PojoContext is chained within this codecRegistry and gets asked as well!!
             if (type instanceof Class) {
                 codec = codecRegistry.get(ReflectionHelper.extractRawClass(type));
+                // replace certain codecs as they do harm
+                if (codec instanceof IterableCodec) {
+                    codec = pojoContext.getCodec(type, this);
+                } else if (MONGO_VERSION_LESS_THEN_3_5) {
+                    // we need to ignore half implemented codecs for Float, Byte and Short
+                    if (codec instanceof org.bson.codecs.FloatCodec ||
+                            codec instanceof org.bson.codecs.ByteCodec ||
+                            codec instanceof org.bson.codecs.ShortCodec) {
+                        codec = pojoContext.getCodec(type, this);
+                    }
+                }
+
             } else {
                 // if type is any other type than {@link Class}, there is no reason to ask codecRegistry
                 // directly as anyway the class would need to be extracted from the type and we would loose type information

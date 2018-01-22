@@ -1,6 +1,7 @@
 package de.bild.codec.objectmodel;
 
 
+import com.mongodb.MongoClient;
 import de.bild.codec.EnumCodecProvider;
 import de.bild.codec.PojoCodecProvider;
 import de.bild.codec.objectmodel.model.Pojo;
@@ -41,7 +42,7 @@ public class AnyThingTest {
         @Bean()
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
-                    PojoCodecProvider.getDefaultCodecRegistry(),
+                    MongoClient.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder()
@@ -71,7 +72,7 @@ public class AnyThingTest {
                 222.44f,
                 Arrays.asList(
                         "Any Object",
-                        22,
+                        new Integer(22),
                         new RandomObject(),
                         null,
                         new SomeInterface() {},

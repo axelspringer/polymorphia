@@ -1,19 +1,16 @@
 package de.bild.codec;
 
 
-import com.mongodb.DBObjectCodecProvider;
-import com.mongodb.DBRefCodecProvider;
-import com.mongodb.MongoClient;
-import com.mongodb.client.gridfs.codecs.GridFSFileCodecProvider;
-import com.mongodb.client.model.geojson.codecs.GeoJsonCodecProvider;
 import de.bild.codec.annotations.DecodeUndefinedHandlingStrategy;
 import de.bild.codec.annotations.EncodeNullHandlingStrategy;
 import org.bson.BsonReader;
 import org.bson.BsonValue;
 import org.bson.BsonWriter;
-import org.bson.codecs.*;
+import org.bson.codecs.Codec;
+import org.bson.codecs.CollectibleCodec;
+import org.bson.codecs.DecoderContext;
+import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecProvider;
-import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,8 +22,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.*;
 
-import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
-
 /**
  * Provides a codec for Pojos
  * Use the internal builder to register classes and packages that can be handled by the codec
@@ -36,47 +31,6 @@ public class PojoCodecProvider implements CodecProvider {
     private final TypesModel typesModel;
     private final PojoContext pojoContext;
 
-    private static final CodecRegistry DEFAULT_CODEC_REGISTRY =
-            CodecRegistries.fromRegistries(
-                    CodecRegistries.fromCodecs(
-                            new BinaryCodec(),
-                            new BooleanCodec(),
-                            new DateCodec(),
-                            new DoubleCodec(),
-                            new IntegerCodec(),
-                            new LongCodec(),
-                            new MinKeyCodec(),
-                            new MaxKeyCodec(),
-                            new CodeCodec(),
-                            new Decimal128Codec(),
-                            new ObjectIdCodec(),
-                            new CharacterCodec(),
-                            new StringCodec(),
-                            new SymbolCodec(),
-                            new UuidCodec(),
-                            new PatternCodec(),
-                            new ByteArrayCodec(),
-                            new AtomicBooleanCodec(),
-                            new AtomicIntegerCodec(),
-                            new AtomicLongCodec()),
-                    fromProviders(new DBRefCodecProvider(),
-                            new DocumentCodecProvider(),
-                            new DBObjectCodecProvider(),
-                            new BsonValueCodecProvider(),
-                            new GeoJsonCodecProvider(),
-                            new GridFSFileCodecProvider()));
-
-    /**
-     * A CodecReggistry containing many default codecs from the java mongo driver.
-     * Some codecs are used in {@link MongoClient#getDefaultCodecRegistry()} are omitted
-     * {@link FloatCodec}, {@link ByteCodec}, {@link ShortCodec} are omitted, since they do not support
-     * {@link Codec#decode(BsonReader, DecoderContext)} prior to mongo java driver version 3.5
-     *
-     * @return some generally needed useful codecs needed for to decode pojos (String, Integer, etc.)
-     */
-    public static CodecRegistry getDefaultCodecRegistry() {
-        return DEFAULT_CODEC_REGISTRY;
-    }
 
     PojoCodecProvider(final Set<Class<?>> classes,
                       final Set<String> packages,

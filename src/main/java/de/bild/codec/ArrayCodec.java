@@ -1,6 +1,7 @@
 package de.bild.codec;
 
 import org.apache.commons.lang3.reflect.TypeUtils;
+import org.bson.BsonBinary;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.BsonWriter;
@@ -94,24 +95,23 @@ public class ArrayCodec implements TypeCodec {
     public enum PrimitiveArrayCodec implements Codec {
         BYTE(byte.class) {
             @Override
+            public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
+                writer.writeBinaryData(new BsonBinary((byte[])value));
+            }
+
+            @Override
+            public Object decode(BsonReader reader, DecoderContext decoderContext) {
+                return reader.readBinaryData().getData();
+            }
+
+            @Override
             public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
-                for (byte i : (byte[]) value) {
-                    writer.writeInt32(i);
-                }
+                throw new IllegalStateException("This method 'encodeInternal' on BYTE must never be called");
             }
 
             @Override
             public Object decodeInternal(BsonReader reader, DecoderContext decoderContext) {
-                List<Byte> arrayList = new ArrayList<>();
-                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                    arrayList.add((byte) reader.readInt32());
-                }
-                byte[] bytes = new byte[arrayList.size()];
-                int i = 0;
-                for (byte aPrimitiveByte : arrayList) {
-                    bytes[i++] = aPrimitiveByte;
-                }
-                return bytes;
+                throw new IllegalStateException("This method 'decodeInternal' on BYTE must never be called");
             }
 
         },

@@ -1,5 +1,11 @@
 Release Notes
 =======
+
+## 2.1.1
+* removing PojoCodecProvider.getDefaultCodecRegistry - instead, all "broken" codecs will be ignored
+* ArrayCodec now encodes bytes[] with mongo native encoding
+
+
 ## 2.1.0
 * rewrite of ArrayCodec
 * all container like codecs (CollectionTypeCodec, MapTypeCodec, ArrayCodec) now support null values

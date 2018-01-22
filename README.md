@@ -14,6 +14,19 @@ You can use this codec to encode plain old java objects into a mongo database an
  * partial POJO codec [SpecialFieldsMapCodec](src/main/java/de/bild/codec/SpecialFieldsMapCodec.java)
  * life cycle hook support (pre safe, post load)
 
+
+## Release Notes
+
+Release notes are available [release_notes.md](release_notes.md).
+
+```xml
+<dependency>
+    <groupId>de.bild.backend</groupId>
+    <artifactId>polymorphia</artifactId>
+    <version>2.1.1</version>
+</dependency>
+```
+
 ## Usage
 Note: There are plenty of code examples to be found in the tests.
 
@@ -276,18 +289,6 @@ PojoCodecProvider.builder()
         @EncodeNulls         
         String anotherField;
     }
-```
-
-## Release Notes
-
-Release notes are available [release_notes.md](release_notes.md).
-
-```xml
-<dependency>
-    <groupId>de.bild.backend</groupId>
-    <artifactId>polymorphia</artifactId>
-    <version>2.0.0</version>
-</dependency>
 ```
 
 
