@@ -1,6 +1,7 @@
 package de.bild.codec;
 
 import org.bson.BsonReader;
+import org.bson.BsonReaderMark;
 import org.bson.BsonType;
 import org.bson.BsonWriter;
 import org.bson.codecs.DecoderContext;
@@ -11,10 +12,9 @@ import org.slf4j.LoggerFactory;
 import java.util.Set;
 
 /**
- *
  * Provides functionality for handling polymorphic structures.
  * decode() as well as encode() have default implementations within this interface.
- *
+ * <p>
  * Attention: The name of this interface may be misleading.
  * Any Codec that might be part of a polymorphic codec structure needs to implement this interface,
  * as the codec needs to answer certain questions, most obviously {@link #verifyFieldsNotNamedLikeAnyDiscriminatorKey}
@@ -44,25 +44,46 @@ public interface PolymorphicCodec<T> extends TypeCodec<T> {
 
     @Override
     default T decode(BsonReader reader, DecoderContext decoderContext) {
-        T newInstance;
-        if (reader.getCurrentBsonType() == null || reader.getCurrentBsonType() == BsonType.DOCUMENT) {
-            reader.readStartDocument();
-            newInstance = decodeFields(reader, decoderContext, newInstance());
-            reader.readEndDocument();
-            return newInstance;
-        } else {
-            LOGGER.error("Expected to read document but reader is in state {}. Skipping value!", reader.getCurrentBsonType());
-            reader.skipValue();
-            return null;
-        }
+        BsonReaderMark mark = null;
+        /*
+        TODO: need fix for https://jira.mongodb.org/browse/JAVA-2754 to implement backoff strategy.
+         */
+//        try {
+//            mark = reader.getMark();
+            T newInstance;
+            if (reader.getCurrentBsonType() == null || reader.getCurrentBsonType() == BsonType.DOCUMENT) {
+                reader.readStartDocument();
+                newInstance = decodeFields(reader, decoderContext, newInstance());
+                reader.readEndDocument();
+                return newInstance;
+            } else {
+                LOGGER.error("Expected to read document but reader is in state {}. Skipping value!", reader.getCurrentBsonType());
+                reader.skipValue();
+                return null;
+            }
+//        } catch (Exception e) {
+//            LOGGER.error("Exception while reading pojo from reader. Skipping value.", e);
+//
+//            /**
+//             * in case the current pojo can be decoded due to errors, the codec will skip the current entity from the reader and returns null.
+//             * The user can then react accordingly.
+//             * TODO: Maybe it can be achieved to throw an unchecked exception with additional information on why the decoding failed.
+//             * TODO: The question is: how would the user handle this exception and proceed with the stream?
+//             */
+//
+//            if (mark != null) {
+//                mark.reset();
+//                reader.skipValue();
+//            }
+//        }
+//        return null;
     }
 
     @Override
     default void encode(BsonWriter writer, T value, EncoderContext encoderContext) {
         if (value == null) {
             writer.writeNull();
-        }
-        else {
+        } else {
             writer.writeStartDocument();
             encodeFields(writer, value, encoderContext);
             writer.writeEndDocument();
@@ -71,8 +92,9 @@ public interface PolymorphicCodec<T> extends TypeCodec<T> {
 
     /**
      * A check for properties with names equal to any of the identified discriminator keys
+     *
      * @param discriminatorKeys the identified discriminator keys
-     * throws an {@link IllegalArgumentException} if a name of an internally used property is equal to one of the discriminator keys
+     *                          throws an {@link IllegalArgumentException} if a name of an internally used property is equal to one of the discriminator keys
      */
     void verifyFieldsNotNamedLikeAnyDiscriminatorKey(Set<String> discriminatorKeys) throws IllegalArgumentException;
 

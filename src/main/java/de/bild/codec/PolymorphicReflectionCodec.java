@@ -3,10 +3,7 @@ package de.bild.codec;
 import de.bild.codec.annotations.Discriminator;
 import de.bild.codec.annotations.DiscriminatorFallback;
 import de.bild.codec.annotations.DiscriminatorKey;
-import org.bson.BsonReader;
-import org.bson.BsonType;
-import org.bson.BsonValue;
-import org.bson.BsonWriter;
+import org.bson.*;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.slf4j.Logger;
@@ -112,7 +109,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
         }
 
         String discriminator = null;
-        reader.mark();
+        BsonReaderMark mark = reader.getMark();
         reader.readStartDocument();
         PolymorphicCodec<T> codec = null;
         while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
@@ -138,7 +135,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
             }
         }
 
-        reader.reset();
+        mark.reset();
 
         // try fallback and legacy handling
         if (codec == null) {

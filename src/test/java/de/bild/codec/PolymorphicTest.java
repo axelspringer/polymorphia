@@ -43,7 +43,6 @@ public class PolymorphicTest {
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
                     CodecRegistries.fromProviders(
-                            new EnumCodecProvider(),
                             PojoCodecProvider.builder().register(PolymorphicTest.class).build()
                     ),
                     MongoClient.getDefaultCodecRegistry());
@@ -79,9 +78,15 @@ public class PolymorphicTest {
         String name;
     }
 
-    public static class Square extends IdentityShape  {
+    public static class Square extends IdentityShape {
         int foo;
     }
+
+    enum FinalShapes implements Shape {
+        ONE_METER_CIRCLE,
+        SMALL_TRIANGLE;
+    }
+
     /************  DOMAIN MODEL END ************/
 
 
@@ -91,7 +96,7 @@ public class PolymorphicTest {
         MongoCollection<Shape> collection = database.getCollection("entities").withDocumentClass(Shape.class);
 
 
-        Shape[] shapes = {new Circle(), new Square(), new Square(), new Circle()};
+        Shape[] shapes = {new Circle(), new Square(), new Square(), FinalShapes.ONE_METER_CIRCLE, new Circle(), FinalShapes.SMALL_TRIANGLE};
         collection.insertMany(Arrays.asList(shapes));
 
         FindIterable<Shape> shapesFoundIterable = collection.find();

@@ -8,7 +8,10 @@ import org.apache.commons.lang3.reflect.TypeUtils;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.BsonWriter;
-import org.bson.codecs.*;
+import org.bson.codecs.Codec;
+import org.bson.codecs.DecoderContext;
+import org.bson.codecs.EncoderContext;
+import org.bson.codecs.IterableCodec;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,29 +27,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PojoContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(PojoContext.class);
 
-    private static final FloatCodec FLOAT_CODEC = new FloatCodec();
-    private static final ByteCodec BYTE_CODEC = new ByteCodec();
-    private static final ShortCodec SHORT_CODEC = new ShortCodec();
-
     private final Map<Type, Codec<?>> codecMap = new ConcurrentHashMap<>();
     private final TypesModel typesModel;
     private final List<CodecResolver> codecResolvers;
     private final List<TypeCodecProvider> typeCodecProviders;
     private final CodecConfiguration codecConfiguration;
 
-    private static final boolean MONGO_VERSION_LESS_THEN_3_5;
-
-    static {
-        boolean classPojoCodecProviderExists = false;
-        try {
-            Thread.currentThread().getContextClassLoader().loadClass("org.bson.codecs.pojo.PojoCodecProvider");
-            classPojoCodecProviderExists = true;
-        } catch (ClassNotFoundException e) {
-            LOGGER.debug("Assuming a mongo version < 3.5.");
-        }
-
-        MONGO_VERSION_LESS_THEN_3_5 = !classPojoCodecProviderExists;
-    }
 
     /**
      * The TypeCodecProvider for all known standard types
@@ -66,14 +52,6 @@ public class PojoContext {
             } else if (type instanceof WildcardType) {
                 LOGGER.error("WildcardTypes are not yet supported. {}", type);
                 throw new NotImplementedException("WildcardTypes are not yet supported. " + type);
-            }
-            // the default codecs provided by the mongo driver lack the decode method, hence this redefinition
-            else if (Float.class.equals(type)) {
-                return (Codec<T>) FLOAT_CODEC;
-            } else if (Short.class.equals(type)) {
-                return (Codec<T>) SHORT_CODEC;
-            } else if (Byte.class.equals(type)) {
-                return (Codec<T>) BYTE_CODEC;
             } else if (TypeUtils.isAssignable(type, SpecialFieldsMap.class)) {
                 return new SpecialFieldsMapCodec(type, typeCodecRegistry);
             }
@@ -130,15 +108,7 @@ public class PojoContext {
                 // replace certain codecs as they do harm
                 if (codec instanceof IterableCodec) {
                     codec = pojoContext.getCodec(type, this);
-                } else if (MONGO_VERSION_LESS_THEN_3_5) {
-                    // we need to ignore half implemented codecs for Float, Byte and Short
-                    if (codec instanceof org.bson.codecs.FloatCodec ||
-                            codec instanceof org.bson.codecs.ByteCodec ||
-                            codec instanceof org.bson.codecs.ShortCodec) {
-                        codec = pojoContext.getCodec(type, this);
-                    }
                 }
-
             } else {
                 // if type is any other type than {@link Class}, there is no reason to ask codecRegistry
                 // directly as anyway the class would need to be extracted from the type and we would loose type information
@@ -207,9 +177,9 @@ public class PojoContext {
                 return codec;
             }
         }
-        // enums are special - a PolymorphicCodec for enums can be build on the fly {@link EnumReflectionCodecWrapper}
+        //enums are special - a PolymorphicCodec for enums can be build on the fly {@link EnumReflectionCodecWrapper}
         if (TypeUtils.isAssignable(type, Enum.class)) {
-            return new EnumReflectionCodecWrapper(typeCodecRegistry.getCodec(type));
+            return new EnumReflectionCodecWrapper(new EnumCodec(ReflectionHelper.extractRawClass(type)));
         }
         // fallback is BasicReflectionCodec
         return new BasicReflectionCodec(type, typeCodecRegistry, codecConfiguration);
@@ -257,6 +227,7 @@ public class PojoContext {
                 throw new IllegalArgumentException("One of the discriminator keys equals the reserved word 'enum' " + discriminatorKeys);
             }
         }
+
     }
 
     /**
@@ -274,10 +245,6 @@ public class PojoContext {
             if (codec != null) {
                 return codec;
             }
-        }
-
-        if (TypeUtils.isAssignable(type, Enum.class)) {
-            return null;
         }
 
         // standard codec available ?
@@ -338,7 +305,7 @@ public class PojoContext {
     /**
      * Class is used internally to detect cycles.
      */
-    private static class LazyCodec<T> implements TypeCodec<T> {
+    private static class LazyCodec<T> implements TypeCodec<T>, DelegatingCodec<T> {
         private final Type type;
         private volatile Codec<T> wrapped;
         private final TypeCodecRegistry typeCodecRegistry;
@@ -370,29 +337,10 @@ public class PojoContext {
 
             return wrapped;
         }
-    }
 
-    /**
-     * for some reason some mongo driver provided Codecs do not implement decode properly
-     */
-    private static class FloatCodec extends org.bson.codecs.FloatCodec {
         @Override
-        public Float decode(BsonReader reader, DecoderContext decoderContext) {
-            return (float) reader.readDouble();
-        }
-    }
-
-    private static class ByteCodec extends org.bson.codecs.ByteCodec {
-        @Override
-        public Byte decode(BsonReader reader, DecoderContext decoderContext) {
-            return (byte) reader.readInt32();
-        }
-    }
-
-    private static class ShortCodec extends org.bson.codecs.ShortCodec {
-        @Override
-        public Short decode(BsonReader reader, DecoderContext decoderContext) {
-            return (short) reader.readInt32();
+        public Codec<T> getDelegate() {
+            return getWrapped();
         }
     }
 }

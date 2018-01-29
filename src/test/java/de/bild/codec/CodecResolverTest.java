@@ -14,6 +14,7 @@ import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.json.JsonMode;
 import org.bson.json.JsonWriter;
 import org.bson.json.JsonWriterSettings;
 import org.bson.types.ObjectId;
@@ -254,7 +255,7 @@ public class CodecResolverTest {
 
         Codec<Document> documentCodec = codecRegistry.get(Document.class);
         StringWriter stringWriter = new StringWriter();
-        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(true));
+        JsonWriter writer = new JsonWriter(stringWriter, JsonWriterSettings.builder().indent(true).outputMode(JsonMode.EXTENDED).build());
         documentCodec.encode(writer, document, EncoderContext.builder().build());
         LOGGER.info("The encoded json looks like: {}", stringWriter);
 

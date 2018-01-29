@@ -1,5 +1,8 @@
 Release Notes
 =======
+## 2.2.0
+* mongo version > 3.5 support
+* changed enum handling
 
 ## 2.1.1
 * removing PojoCodecProvider.getDefaultCodecRegistry - instead, all "broken" codecs will be ignored

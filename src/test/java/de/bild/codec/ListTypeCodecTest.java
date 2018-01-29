@@ -6,6 +6,7 @@ import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.json.JsonMode;
 import org.bson.json.JsonReader;
 import org.bson.json.JsonWriter;
 import org.bson.json.JsonWriterSettings;
@@ -80,7 +81,7 @@ public class ListTypeCodecTest {
 
 
         StringWriter stringWriter = new StringWriter();
-        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(true));
+        JsonWriter writer = new JsonWriter(stringWriter, JsonWriterSettings.builder().indent(true).outputMode(JsonMode.EXTENDED).build());
         encodingPojoCodec.encode(writer, encodingPojo, EncoderContext.builder().build());
         System.out.println(stringWriter.toString());
 

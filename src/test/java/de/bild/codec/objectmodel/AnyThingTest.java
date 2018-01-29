@@ -80,7 +80,7 @@ public class AnyThingTest {
                 ));
 
         StringWriter stringWriter = new StringWriter();
-        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(true));
+        JsonWriter writer = new JsonWriter(stringWriter, JsonWriterSettings.builder().indent(true).outputMode(JsonMode.EXTENDED).build());
         codec.encode(writer, pojo, EncoderContext.builder().build());
         LOGGER.info("The encoded json looks like: {}", stringWriter);
         Pojo readPojo = codec.decode(new JsonReader(stringWriter.toString()), DecoderContext.builder().build());

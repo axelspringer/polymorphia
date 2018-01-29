@@ -7,6 +7,7 @@ import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.json.JsonMode;
 import org.bson.json.JsonReader;
 import org.bson.json.JsonWriter;
 import org.bson.json.JsonWriterSettings;
@@ -79,7 +80,7 @@ public class PreSaveHookTest {
         Codec<BasePojo> primitivePojoCodec = codecRegistry.get(BasePojo.class);
 
         StringWriter stringWriter = new StringWriter();
-        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(true));
+        JsonWriter writer = new JsonWriter(stringWriter, JsonWriterSettings.builder().indent(true).outputMode(JsonMode.EXTENDED).build());
         primitivePojoCodec.encode(writer, basePojo, EncoderContext.builder().build());
         LOGGER.info("The encoded json looks like: {}", stringWriter);
 

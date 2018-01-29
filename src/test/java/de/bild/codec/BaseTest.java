@@ -303,7 +303,7 @@ public class BaseTest {
         Codec<BasePojo> primitivePojoCodec = codecRegistry.get(BasePojo.class);
 
         StringWriter stringWriter = new StringWriter();
-        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(JsonMode.STRICT, true));
+        JsonWriter writer = new JsonWriter(stringWriter, JsonWriterSettings.builder().indent(true).outputMode(JsonMode.EXTENDED).build());
         primitivePojoCodec.encode(writer, basePojo, EncoderContext.builder().build());
         LOGGER.info("The encoded json looks like: {}", stringWriter);
         BasePojo readBasePojo = primitivePojoCodec.decode(new JsonReader(stringWriter.toString()), DecoderContext.builder().build());
@@ -318,7 +318,7 @@ public class BaseTest {
 
         Codec<IntegerType> integerTypeCodec = codecRegistry.get(IntegerType.class);
         StringWriter stringWriter = new StringWriter();
-        JsonWriter writer = new JsonWriter(stringWriter, new JsonWriterSettings(true));
+        JsonWriter writer = new JsonWriter(stringWriter, JsonWriterSettings.builder().indent(true).outputMode(JsonMode.EXTENDED).build());
         integerTypeCodec.encode(writer, integerType, EncoderContext.builder().build());
         LOGGER.info("The encoded json looks like: {}", stringWriter);
         IntegerType readIntegerType = integerTypeCodec.decode(new JsonReader(stringWriter.toString()), DecoderContext.builder().build());
