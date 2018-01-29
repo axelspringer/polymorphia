@@ -8,12 +8,13 @@ You can use this codec to encode plain old java objects into a mongo database an
  * support for generic types
  * fine grained control over discriminator keys and values (needed to morph into the correct POJO while decoding)
  * fast
- * support for primitives and there object counterparts, sets, lists, maps (Map<String, T> as well as Map<KeyType,ValueType>) multi dimensional arrays, enums
+ * support for primitives and their object counterparts, sets, lists, maps (Map<String, T> as well as Map<KeyType,ValueType>) multi dimensional arrays, enums
  * allows for easy application [@Id(collectible = true)](src/main/java/de/bild/codec/annotations/Id.java) generation [@see CollectibleCodec](org.bson.codecs.CollectibleCodec)
    * example: [IdTest](src/test/java/de/bild/codec/id/IdTest.java)
  * provides fine grained control over restructuring data written to mongo (and reading from mongo) 
  * partial POJO codec [SpecialFieldsMapCodec](src/main/java/de/bild/codec/SpecialFieldsMapCodec.java)
  * life cycle hook support (pre safe, post load)
+ * support mongo java driver > version 3.5
 
 
 ## Release Notes
