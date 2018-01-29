@@ -53,9 +53,14 @@ Simple example @see example [PolymorphicTest](src/test/java/de/bild/codec/Polymo
             int foo;
         }
         
+        enum FinalShapes implements Shape {
+            ONE_METER_CIRCLE,
+            SMALL_TRIANGLE;
+        }
+        
         public static void main() {
             com.mongodb.client.MongoCollection<Shape> collection = database.getCollection("shapes").withDocumentClass(Shape.class);
-            collection.insertMany(Arrays.asList(new Circle(), new Square(), new Square(), new Circle()));
+            collection.insertMany(Arrays.asList(new Circle(), new Square(), FinalShapes.ONE_METER_CIRCLE, new Square(), new Circle()));
             
             for (Shape shape : collection.find()) {
                 System.out.println("Shape : " + shape.getClass().getSimpleName());
@@ -64,6 +69,7 @@ Simple example @see example [PolymorphicTest](src/test/java/de/bild/codec/Polymo
             // would print
             // Shape : Circle
             // Shape : Square
+            // Shape : ONE_METER_CIRCLE 
             // Shape : Square
             // Shape : Circle
         }
