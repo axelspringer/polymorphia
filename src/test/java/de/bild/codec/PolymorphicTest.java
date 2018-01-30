@@ -6,8 +6,15 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import de.bild.codec.annotations.Id;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.json.JsonMode;
+import org.bson.json.JsonWriter;
+import org.bson.json.JsonWriterSettings;
 import org.bson.types.ObjectId;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
@@ -22,6 +29,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,7 +51,9 @@ public class PolymorphicTest {
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
                     CodecRegistries.fromProviders(
-                            PojoCodecProvider.builder().register(PolymorphicTest.class).build()
+                            PojoCodecProvider.builder()
+                                    .register(Object.class)
+                                    .register(PolymorphicTest.class).build()
                     ),
                     MongoClient.getDefaultCodecRegistry());
         }
@@ -87,21 +97,44 @@ public class PolymorphicTest {
         SMALL_TRIANGLE;
     }
 
+
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    static class Pojo {
+        List<Shape> shapes;
+        Shape aShape;
+        FinalShapes aFinalShapes;
+        Pojo innerPojo;
+    }
+
     /************  DOMAIN MODEL END ************/
 
 
     @Test
     public void polymorphiaTest() {
         MongoDatabase database = mongoClient.getDatabase(DB_NAME);
-        MongoCollection<Shape> collection = database.getCollection("entities").withDocumentClass(Shape.class);
+        MongoCollection<Pojo> collection = database.getCollection("entities").withDocumentClass(Pojo.class);
 
+        Shape[] shapes = {FinalShapes.SMALL_TRIANGLE, new Circle(), new Square(), new Square(), new Circle()};
 
-        Shape[] shapes = {new Circle(), new Square(), new Square(), FinalShapes.ONE_METER_CIRCLE, new Circle(), FinalShapes.SMALL_TRIANGLE};
-        collection.insertMany(Arrays.asList(shapes));
+        Pojo pojo = Pojo.builder()
+                .shapes(Arrays.asList(shapes))
+                .aFinalShapes(FinalShapes.SMALL_TRIANGLE)
+                .aShape(new Square())
+                .innerPojo(Pojo.builder()
+                        .shapes(Arrays.asList(shapes))
+                        .aFinalShapes(FinalShapes.ONE_METER_CIRCLE)
+                        .aShape(new Circle())
+                        .build())
+                .build();
 
-        FindIterable<Shape> shapesFoundIterable = collection.find();
+        collection.insertOne(pojo);
+
+        Pojo readPojo = collection.find().first();
+
         List<Shape> foundShapes = new ArrayList<>();
-        for (Shape shape : shapesFoundIterable) {
+        for (Shape shape : readPojo.shapes) {
             LOGGER.info("Found shape {} of type {} in database", shape, shape.getClass().getSimpleName());
             foundShapes.add(shape);
         }

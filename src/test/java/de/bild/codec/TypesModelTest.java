@@ -5,8 +5,6 @@ import org.apache.commons.lang3.reflect.TypeUtils;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Test;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
 import java.util.*;
 
 import static org.junit.Assert.*;
@@ -124,7 +122,7 @@ public class TypesModelTest {
                         ModelClassBase.class,
                         ModelClassWithTypeParameter.class,
                         ModelClassWithoutTypeParameter.class
-                )), null, null);
+                )), null, null, null, null);
 
         assertThat(typesModel.getAssignableTypesWithinClassHierarchy(NonModelClassWithoutTypeParameter.class),
                 IsIterableContainingInAnyOrder.containsInAnyOrder(ModelClassWithoutTypeParameter.class));
@@ -141,12 +139,12 @@ public class TypesModelTest {
     }
 
 
-    static TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(TypesModelTest.class)), null, new HashSet<>(Arrays.asList(IgnoreType.class, IgnoreAnnotation.class)));
+    static TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(TypesModelTest.class)), null, new HashSet<>(Arrays.asList(IgnoreType.class, IgnoreAnnotation.class)), null, null);
 
 
     @Test
     public void classParserTest() {
-        TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(Outer.class)), null, null);
+        TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(Outer.class)), null, null, null, null);
         assertTrue(typesModel.allClasses.size() == 3);
         assertThat(typesModel.allClasses, IsIterableContainingInAnyOrder.containsInAnyOrder(
                 Outer.class, Outer.Inner.class, Outer.Inner.InnerInner.class

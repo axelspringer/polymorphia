@@ -21,6 +21,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.*;
+import java.util.function.Predicate;
 
 /**
  * Provides a codec for Pojos
@@ -35,10 +36,11 @@ public class PojoCodecProvider implements CodecProvider {
     PojoCodecProvider(final Set<Class<?>> classes,
                       final Set<String> packages,
                       final Set<Class<? extends Annotation>> ignoreAnnotations,
-                      List<TypeCodecProvider> typeCodecProviders,
+                      Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates,
+                      Set<Class<?>> ignoreClasses, List<TypeCodecProvider> typeCodecProviders,
                       final List<CodecResolver> codecResolvers,
                       CodecConfiguration codecConfiguration) {
-        this.typesModel = new TypesModel(classes, packages, ignoreAnnotations);
+        this.typesModel = new TypesModel(classes, packages, ignoreAnnotations, ignoreTypesMatchingClassNamePredicates, ignoreClasses);
         this.pojoContext = new PojoContext(typesModel, codecResolvers, typeCodecProviders, codecConfiguration);
     }
 
@@ -149,6 +151,8 @@ public class PojoCodecProvider implements CodecProvider {
         private Set<Class<?>> classes = new HashSet<>();
         private List<CodecResolver> codecResolvers = new ArrayList<>();
         private Set<Class<? extends Annotation>> ignoreAnnotations = new HashSet<>();
+        private Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates = new HashSet<>();
+        private Set<Class<?>> ignoreClasses = new HashSet<>();
         private List<TypeCodecProvider> typeCodecProviders = new ArrayList<>();
         private EncodeNullHandlingStrategy.Strategy encodeNullHandlingStrategy = EncodeNullHandlingStrategy.Strategy.CODEC;
         private DecodeUndefinedHandlingStrategy.Strategy decodeUndefinedHandlingStrategy = DecodeUndefinedHandlingStrategy.Strategy.KEEP_POJO_DEFAULT;
@@ -171,6 +175,25 @@ public class PojoCodecProvider implements CodecProvider {
 
         public Builder ignoreTypesAnnotatedWith(Class<? extends Annotation>... annotations) {
             this.ignoreAnnotations.addAll(Arrays.asList(annotations));
+            return this;
+        }
+
+        /**
+         * If you need to exclude private inner classes form the domain model, use a Predicate
+         * @param ignoreTypesMatchingClassNamePredicates
+         * @return the Builder
+         */
+        public Builder ignoreTypesMatchingClassNamePredicate(Predicate<String>... ignoreTypesMatchingClassNamePredicates) {
+            this.ignoreTypesMatchingClassNamePredicates.addAll(Arrays.asList(ignoreTypesMatchingClassNamePredicates));
+            return this;
+        }
+
+        /**
+         * If ypu can point to the classes to be ignored, you can do this here
+         * @return the Builder
+         */
+        public Builder ignoreClasses(Class<?>... ignoreClasses) {
+            this.ignoreClasses.addAll(Arrays.asList(ignoreClasses));
             return this;
         }
 
@@ -222,7 +245,7 @@ public class PojoCodecProvider implements CodecProvider {
                     .encodeNullHandlingStrategy(encodeNullHandlingStrategy)
                     .encodeNulls(encodeNulls)
                     .build();
-            return new PojoCodecProvider(classes, packages, ignoreAnnotations, typeCodecProviders, codecResolvers, codecConfiguration);
+            return new PojoCodecProvider(classes, packages, ignoreAnnotations, ignoreTypesMatchingClassNamePredicates, ignoreClasses, typeCodecProviders, codecResolvers, codecConfiguration);
         }
     }
 }

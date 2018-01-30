@@ -251,7 +251,7 @@ public class MappedField<T, F> {
 
     public void decode(BsonReader reader, T instance, DecoderContext decoderContext) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Decode field : {}({}) - codec : {}", getMappedFieldName(), fieldTypePair.getRealType(), field.getType().isPrimitive() ? primitiveType : codec);
+            LOGGER.debug("Decode field : {}({}) - codec : {}", field, fieldTypePair.getRealType(), field.getType().isPrimitive() ? primitiveType : codec);
         }
         if (field.getType().isPrimitive()) {
             if (reader.getCurrentBsonType() == BsonType.NULL || reader.getCurrentBsonType() == BsonType.UNDEFINED) {

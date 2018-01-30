@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,9 +30,13 @@ public class TypesModel {
     protected final Set<Class<?>> allClasses = new HashSet<>();
     protected final Map<Class<?>, ClassHierarchyNode> classHierarchy;
     protected final Set<Class<? extends Annotation>> ignoreAnnotations;
+    protected final Set<Class<?>> ignoreClasses;
+    protected final Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates;
 
-    public TypesModel(final Set<Class<?>> classes, final Set<String> packages, final Set<Class<? extends Annotation>> ignoreAnnotations) {
+    public TypesModel(final Set<Class<?>> classes, final Set<String> packages, final Set<Class<? extends Annotation>> ignoreAnnotations, Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates, Set<Class<?>> ignoreClasses) {
         this.ignoreAnnotations = ignoreAnnotations != null ? ignoreAnnotations : Collections.emptySet();
+        this.ignoreTypesMatchingClassNamePredicates = ignoreTypesMatchingClassNamePredicates != null ? ignoreTypesMatchingClassNamePredicates : Collections.emptySet();
+        this.ignoreClasses = ignoreClasses != null ? ignoreClasses : Collections.emptySet();
 
         // first index all direct classes
         if (classes != null) {
@@ -182,6 +187,20 @@ public class TypesModel {
                 return;
             }
         }
+        for (Predicate<String> ignoreTypesMatchingClassNamePredicate : ignoreTypesMatchingClassNamePredicates) {
+            if (ignoreTypesMatchingClassNamePredicate.test(clazz.getName())) {
+                LOGGER.debug("Ignoring class : {} because of matching ignore predicate {}", clazz, ignoreTypesMatchingClassNamePredicate);
+                return;
+            }
+        }
+        for (Class<?> ignoreClass : ignoreClasses) {
+            if (ignoreClass.equals(clazz)) {
+                LOGGER.debug("Ignoring class : {} because class was registered to be ignored {}", clazz, ignoreClass);
+                return;
+            }
+
+        }
+
         if ( clazz.getEnclosingClass() == null ||
                 (clazz.getEnclosingClass() != null && Modifier.isStatic(clazz.getModifiers()))) {
             boolean added = allClasses.add(clazz);

@@ -4,6 +4,7 @@ package de.bild.codec.objectmodel;
 import com.mongodb.MongoClient;
 import de.bild.codec.EnumCodecProvider;
 import de.bild.codec.PojoCodecProvider;
+import de.bild.codec.objectmodel.model.NiceEnum;
 import de.bild.codec.objectmodel.model.Pojo;
 import de.bild.codec.objectmodel.model.RandomObject;
 import de.bild.codec.objectmodel.model.SomeInterface;
@@ -47,7 +48,11 @@ public class AnyThingTest {
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register(Object.class)
+                                    .register(String.class)
+                                    .register(Integer.class)
                                     .register(Pojo.class.getPackage().getName())
+                                    //.ignoreTypesMatchingClassNamePredicate(className -> className.contains("$CaseInsensitiveComparator"))
+                                    //.ignoreClasses(Integer.class)
                                     .build()
                     )
             );
@@ -72,9 +77,11 @@ public class AnyThingTest {
                 222.44f,
                 Arrays.asList(
                         "Any Object",
+                        Double.valueOf(212d),
                         new Integer(22),
                         new RandomObject(),
                         null,
+                        NiceEnum.TYPE_A,
                         new SomeInterface() {},
                         new NonRegisteredExtendingRegisteredClass("Do not persist this property")
                 ));
@@ -87,7 +94,9 @@ public class AnyThingTest {
 
         Assert.assertNotEquals(pojo, readPojo);
         Assert.assertEquals(pojo.getAFloat(), readPojo.getAFloat());
-        Assert.assertTrue(readPojo.getObjects().get(0).getClass() == Object.class);
+        Assert.assertTrue(readPojo.getObjects().get(0).getClass() == String.class);
+        Assert.assertTrue(readPojo.getObjects().get(1).getClass() == Object.class); // Double is not part of domain model, bt Object is!!
+        Assert.assertTrue(readPojo.getObjects().get(2).getClass() == Integer.class);
 
     }
 }

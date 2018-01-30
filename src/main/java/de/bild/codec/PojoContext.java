@@ -55,6 +55,10 @@ public class PojoContext {
             } else if (TypeUtils.isAssignable(type, SpecialFieldsMap.class)) {
                 return new SpecialFieldsMapCodec(type, typeCodecRegistry);
             }
+            // default enum Codec if user did not register any
+            else if (TypeUtils.isAssignable(type, Enum.class)) {
+                return new EnumCodec(ReflectionHelper.extractRawClass(type));
+            }
 
             // List ?
             Codec<T> codec = ListTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
@@ -177,37 +181,50 @@ public class PojoContext {
                 return codec;
             }
         }
-        //enums are special - a PolymorphicCodec for enums can be build on the fly {@link EnumReflectionCodecWrapper}
-        if (TypeUtils.isAssignable(type, Enum.class)) {
-            return new EnumReflectionCodecWrapper(new EnumCodec(ReflectionHelper.extractRawClass(type)));
+
+        // if there is a standard codec provided for a type, that needs to be stored along with
+        // polymorphic Type information "_t", we need to wrap that codec
+        /** Alternatively a user could always provide a {@link CodecResolver} in order to override this default handling **/
+        if (!codecMap.containsKey(type)) {
+            Codec<T> standardCodec = typeCodecRegistry.getCodec(type);
+            if (!(standardCodec instanceof TypeCodec)) {
+                return new PolymorphicCodecWrapper<>(standardCodec);
+            }
         }
+
+        // if user has not registered a default Codec for Enums, use the internal one
+        if (TypeUtils.isAssignable(type, Enum.class)) {
+            return new PolymorphicCodecWrapper(new EnumCodec(ReflectionHelper.extractRawClass(type)));
+        }
+
+
         // fallback is BasicReflectionCodec
         return new BasicReflectionCodec(type, typeCodecRegistry, codecConfiguration);
     }
 
-    private static class EnumReflectionCodecWrapper<T extends Enum<T>> implements PolymorphicCodec<T> {
+    private static class PolymorphicCodecWrapper<T> implements PolymorphicCodec<T> {
         final Codec<T> codec;
 
-        EnumReflectionCodecWrapper(Codec<T> codec) {
+        public PolymorphicCodecWrapper(Codec<T> codec) {
             this.codec = codec;
         }
 
+        @Override
         public T decodeFields(BsonReader reader, DecoderContext decoderContext, T instance) {
             while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                 String fieldName = reader.readName();
-                if ("enum".equals(fieldName)) {
+                if ("data".equals(fieldName)) {
                     return codec.decode(reader, decoderContext);
                 } else {
                     reader.skipValue();
                 }
             }
-            // throw new EnumValueNotFoundException??? instead of returning null?
             return null;
         }
 
         @Override
         public void encodeFields(BsonWriter writer, T instance, EncoderContext encoderContext) {
-            writer.writeName("enum");
+            writer.writeName("data");
             codec.encode(writer, instance, encoderContext);
         }
 
@@ -217,18 +234,27 @@ public class PojoContext {
         }
 
         @Override
+        public void verifyFieldsNotNamedLikeAnyDiscriminatorKey(Set<String> discriminatorKeys) throws IllegalArgumentException {
+            if (discriminatorKeys.contains("data")) {
+                throw new IllegalArgumentException("One of the discriminator keys equals the reserved word 'data' " + discriminatorKeys);
+            }
+        }
+
+        @Override
         public Class<T> getEncoderClass() {
             return codec.getEncoderClass();
         }
 
         @Override
-        public void verifyFieldsNotNamedLikeAnyDiscriminatorKey(Set<String> discriminatorKeys) throws IllegalArgumentException {
-            if (discriminatorKeys.contains("enum")) {
-                throw new IllegalArgumentException("One of the discriminator keys equals the reserved word 'enum' " + discriminatorKeys);
-            }
+        public String toString() {
+            final StringBuilder sb = new StringBuilder("PolymorphicCodecWrapper{");
+            sb.append("codec=").append(codec);
+            sb.append('}');
+            return sb.toString();
         }
-
     }
+
+
 
     /**
      * Will try to find an appropriate codec for the given type.
