@@ -146,7 +146,10 @@ public class TypesModel {
         if (classHierarchyNode == null && allClasses.contains(classToBeAdded)) {
             classHierarchyNode = new ClassHierarchyNode(classToBeAdded);
             clazzHierarchy.put(classToBeAdded, classHierarchyNode);
-            ClassHierarchyNode superNode = addClassToHierarchy(classToBeAdded.getSuperclass(), clazzHierarchy);
+
+            Class<?> superClassWithinModel = getSuperClassWithinModel(classToBeAdded);
+
+            ClassHierarchyNode superNode = addClassToHierarchy(superClassWithinModel, clazzHierarchy);
             if (superNode != null) {
                 superNode.addChild(classHierarchyNode);
             }
@@ -158,6 +161,17 @@ public class TypesModel {
             }
         }
         return classHierarchyNode;
+    }
+
+    private Class<?> getSuperClassWithinModel(Class<?> clazz) {
+        if (clazz != null) {
+            Class<?> superClass = clazz.getSuperclass();
+            if (allClasses.contains(superClass)) {
+                return superClass;
+            }
+            return getSuperClassWithinModel(superClass);
+        }
+        return null;
     }
 
 
