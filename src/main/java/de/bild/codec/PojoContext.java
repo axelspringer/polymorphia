@@ -185,6 +185,8 @@ public class PojoContext {
         // if there is a standard codec provided for a type, that needs to be stored along with
         // polymorphic Type information "_t", we need to wrap that codec
         /** Alternatively a user could always provide a {@link CodecResolver} in order to override this default handling **/
+        // if codecMap contains a mapping for type (may be LazyCodec) that means, that within the chain of registered codecs,
+        // there is no codec able to handle the type -> so we need to skip this part and create a reflection based codec
         if (!codecMap.containsKey(type)) {
             Codec<T> standardCodec = typeCodecRegistry.getCodec(type);
             if (!(standardCodec instanceof TypeCodec)) {
@@ -287,7 +289,7 @@ public class PojoContext {
         if (validTypesForType == null || validTypesForType.isEmpty()) {
             LOGGER.debug("Could not find concrete implementation for type {}. Maybe another codec is able to handle te class?!", type);
             return null;
-        } else if (validTypesForType.size() > 1 || isPolymorphic(type)) {
+        } else if (validTypesForType.size() > 1 || isPolymorphic(type, validTypesForType.iterator().next())) {
             LOGGER.debug("Creating polymorphic codec for type {} with valid types {}", type, validTypesForType);
             return new PolymorphicReflectionCodec<>(type, validTypesForType, typeCodecRegistry, this);
         } else {
@@ -304,18 +306,23 @@ public class PojoContext {
 
     /**
      * @param type to be checked for polymorphic structure
+     * @param singleValidType
      * @return true, if type represents a polymorphic type structure
      */
-    private boolean isPolymorphic(Type type) {
-        Class clazz = ReflectionHelper.extractRawClass(type);
-        return clazz.getAnnotation(Polymorphic.class) != null ||    // marked as polymorphic (@inherited annotation)
-                clazz.getDeclaredAnnotation(Discriminator.class) != null || // explicit discriminator annotation (non @inherited)
-                isClassPartOfPolymorphicStructureWithinTypesModel(clazz);
+    private boolean isPolymorphic(Type type, Type singleValidType) {
+        Class typeClazz = ReflectionHelper.extractRawClass(type);
+        Class singleValidClass = ReflectionHelper.extractRawClass(singleValidType);
+        return typeClazz.isInterface() || //if type is an interface and there is only one singleValidType -> polymorphic
+                singleValidClass.getAnnotation(Polymorphic.class) != null ||    // marked as polymorphic (@inherited annotation)
+                singleValidClass.getDeclaredAnnotation(Discriminator.class) != null || // explicit discriminator annotation (non @inherited)
+                isClassPartOfPolymorphicStructureWithinTypesModel(typeClazz);
     }
 
     private boolean isClassPartOfPolymorphicStructureWithinTypesModel(Class clazz) {
         Class superclass = clazz.getSuperclass();
         // first check if superclass is part of typesModel, if so return true
+        // Reason: for the current field, since only one valid type exists, non-polymorphic structure could be assumed, but since
+        // there might be pojos, that declare its type further up the type hierarchy and want to decode the same data from the database, discriminators are needed
         if (typesModel.getClassHierarchyNodeForType(superclass) != null) {
             return true;
         }
