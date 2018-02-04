@@ -39,8 +39,8 @@ public class PojoCodecProvider implements CodecProvider {
                       Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates,
                       Set<Class<?>> ignoreClasses, List<TypeCodecProvider> typeCodecProviders,
                       final List<CodecResolver> codecResolvers,
-                      CodecConfiguration codecConfiguration) {
-        this.typesModel = new TypesModel(classes, packages, ignoreAnnotations, ignoreTypesMatchingClassNamePredicates, ignoreClasses);
+                      CodecConfiguration codecConfiguration, ClassResolver classResolver) {
+        this.typesModel = new TypesModel(classes, packages, ignoreAnnotations, ignoreTypesMatchingClassNamePredicates, ignoreClasses, classResolver);
         this.pojoContext = new PojoContext(typesModel, codecResolvers, typeCodecProviders, codecConfiguration);
     }
 
@@ -153,6 +153,7 @@ public class PojoCodecProvider implements CodecProvider {
         private Set<Class<? extends Annotation>> ignoreAnnotations = new HashSet<>();
         private Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates = new HashSet<>();
         private Set<Class<?>> ignoreClasses = new HashSet<>();
+        private ClassResolver classResolver;
         private List<TypeCodecProvider> typeCodecProviders = new ArrayList<>();
         private EncodeNullHandlingStrategy.Strategy encodeNullHandlingStrategy = EncodeNullHandlingStrategy.Strategy.CODEC;
         private DecodeUndefinedHandlingStrategy.Strategy decodeUndefinedHandlingStrategy = DecodeUndefinedHandlingStrategy.Strategy.KEEP_POJO_DEFAULT;
@@ -170,6 +171,16 @@ public class PojoCodecProvider implements CodecProvider {
 
         public Builder register(Class<?>... classes) {
             this.classes.addAll(Arrays.asList(classes));
+            return this;
+        }
+
+        /**
+         * If you need to provide a mechanism to scan packages for model classes, register a {@link ClassResolver}
+         * @param classResolver the resolver for classes within packages
+         * @return this Builder
+         */
+        public Builder registerClassResolver(ClassResolver classResolver) {
+            this.classResolver = classResolver;
             return this;
         }
 
@@ -245,7 +256,7 @@ public class PojoCodecProvider implements CodecProvider {
                     .encodeNullHandlingStrategy(encodeNullHandlingStrategy)
                     .encodeNulls(encodeNulls)
                     .build();
-            return new PojoCodecProvider(classes, packages, ignoreAnnotations, ignoreTypesMatchingClassNamePredicates, ignoreClasses, typeCodecProviders, codecResolvers, codecConfiguration);
+            return new PojoCodecProvider(classes, packages, ignoreAnnotations, ignoreTypesMatchingClassNamePredicates, ignoreClasses, typeCodecProviders, codecResolvers, codecConfiguration, classResolver);
         }
     }
 }
