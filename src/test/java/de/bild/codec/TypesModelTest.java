@@ -1,15 +1,23 @@
 package de.bild.codec;
 
+import com.google.common.reflect.ClassPath;
 import de.bild.codec.annotations.IgnoreType;
+import de.bild.codec.classresolvertestmodel.AnEnum;
+import de.bild.codec.classresolvertestmodel.AnInterface;
 import org.apache.commons.lang3.reflect.TypeUtils;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class TypesModelTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TypesModelTest.class);
 
 
     interface X<PX> {
@@ -73,9 +81,11 @@ public class TypesModelTest {
     }
 
 
-    interface ModelInterface {}
+    interface ModelInterface {
+    }
 
-    static class ModelClassBase implements ModelInterface {}
+    static class ModelClassBase implements ModelInterface {
+    }
 
     static class ModelClassWithTypeParameter<T extends Number, S extends Date> extends ModelClassBase {
 
@@ -104,7 +114,7 @@ public class TypesModelTest {
 
     @IgnoreType
     static class IgnoreMeIfDesired {
-        static class InnerClassToBeIgnoredAsWell{
+        static class InnerClassToBeIgnoredAsWell {
 
         }
     }
@@ -114,7 +124,6 @@ public class TypesModelTest {
     }
 
 
-
     @Test
     public void downGradeTypeTest() {
         TypesModel typesModel = new TypesModel(new HashSet<>(
@@ -122,7 +131,7 @@ public class TypesModelTest {
                         ModelClassBase.class,
                         ModelClassWithTypeParameter.class,
                         ModelClassWithoutTypeParameter.class
-                )), null, null, null, null);
+                )), null, null, null, null, null);
 
         assertThat(typesModel.getAssignableTypesWithinClassHierarchy(NonModelClassWithoutTypeParameter.class),
                 IsIterableContainingInAnyOrder.containsInAnyOrder(ModelClassWithoutTypeParameter.class));
@@ -139,17 +148,51 @@ public class TypesModelTest {
     }
 
 
-    static TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(TypesModelTest.class)), null, new HashSet<>(Arrays.asList(IgnoreType.class, IgnoreAnnotation.class)), null, null);
+    static TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(TypesModelTest.class)), null, new HashSet<>(Arrays.asList(IgnoreType.class, IgnoreAnnotation.class)), null, null, null);
 
 
     @Test
     public void classParserTest() {
-        TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(Outer.class)), null, null, null, null);
+        TypesModel typesModel = new TypesModel(new HashSet<>(Arrays.asList(Outer.class)), null, null, null, null, null);
         assertTrue(typesModel.allClasses.size() == 3);
         assertThat(typesModel.allClasses, IsIterableContainingInAnyOrder.containsInAnyOrder(
                 Outer.class, Outer.Inner.class, Outer.Inner.InnerInner.class
         ));
     }
+
+    @Test
+    public void classResolverTest() {
+
+        Set<Class<?>> modelClasses = new HashSet<>();
+
+        ClassResolver classResolver = packageName -> {
+            try {
+                ClassPath classPath = ClassPath.from(Thread.currentThread().getContextClassLoader());
+                List<Class<?>> classesInPackage = new ArrayList<>();
+                for (ClassPath.ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
+                    LOGGER.info("Load class: {}", classInfo.getName());
+                    Class<?> aClass = classInfo.load();
+                    modelClasses.add(aClass);
+                    classesInPackage.add(aClass);
+                }
+                return classesInPackage;
+            } catch (IOException e) {
+                LOGGER.warn("Some IOException:", e);
+            }
+            return Collections.emptyList();
+        };
+
+        TypesModel typesModel = new TypesModel(
+                null,
+                Collections.singleton(AnInterface.class.getPackage().getName()),
+                null,
+                null,
+                null,
+                classResolver);
+        assertEquals(typesModel.allClasses, modelClasses);
+
+    }
+
 
     @Test
     public void getClassHierarchyNodeForType() throws Exception {

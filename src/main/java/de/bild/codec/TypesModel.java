@@ -31,12 +31,19 @@ public class TypesModel {
     protected final Map<Class<?>, ClassHierarchyNode> classHierarchy;
     protected final Set<Class<? extends Annotation>> ignoreAnnotations;
     protected final Set<Class<?>> ignoreClasses;
+    protected final ClassResolver classResolver;
     protected final Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates;
 
-    public TypesModel(final Set<Class<?>> classes, final Set<String> packages, final Set<Class<? extends Annotation>> ignoreAnnotations, Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates, Set<Class<?>> ignoreClasses) {
+    public TypesModel(final Set<Class<?>> classes,
+                      final Set<String> packages,
+                      final Set<Class<? extends Annotation>> ignoreAnnotations,
+                      Set<Predicate<String>> ignoreTypesMatchingClassNamePredicates,
+                      Set<Class<?>> ignoreClasses,
+                      ClassResolver classResolver) {
         this.ignoreAnnotations = ignoreAnnotations != null ? ignoreAnnotations : Collections.emptySet();
         this.ignoreTypesMatchingClassNamePredicates = ignoreTypesMatchingClassNamePredicates != null ? ignoreTypesMatchingClassNamePredicates : Collections.emptySet();
         this.ignoreClasses = ignoreClasses != null ? ignoreClasses : Collections.emptySet();
+        this.classResolver = classResolver != null ? classResolver : getClassResolver();
 
         // first index all direct classes
         if (classes != null) {
@@ -46,9 +53,8 @@ public class TypesModel {
         }
 
         if (packages != null && !packages.isEmpty()) {
-            Indexer indexer = getIndexer();
             for (String aPackage : packages) {
-                for (Class<?> clazz : indexer.getClassesForPackage(aPackage)) {
+                for (Class<?> clazz : classResolver.getClassesForPackage(aPackage)) {
                     indexClass(clazz);
                 }
             }
@@ -56,8 +62,7 @@ public class TypesModel {
         this.classHierarchy = buildClassHierarchy(allClasses);
     }
 
-    interface Indexer {
-        List<Class<?>> getClassesForPackage(String packageName);
+    interface PredefinedClassResolver extends ClassResolver {
 
         default Class<?> loadClass(Pattern classPattern, String resourceName, ClassLoader classLoader) {
             try {
@@ -82,12 +87,15 @@ public class TypesModel {
      *
      * @return an indexer or throws {@link IllegalStateException}
      */
-    private Indexer getIndexer() {
+    private ClassResolver getClassResolver() {
+        if (classResolver != null) {
+            return classResolver;
+        }
         // now depending on library, index packages
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         try {
             classLoader.loadClass("org.springframework.core.io.Resource");
-            return new Indexer() {
+            return new PredefinedClassResolver() {
                 @Override
                 public List<Class<?>> getClassesForPackage(String packageName) {
                     List<Class<?>> classes = new ArrayList<>();
@@ -113,7 +121,7 @@ public class TypesModel {
             LOGGER.info("Could not find spring-core to use indexing packages, trying org.reflections.Reflections...");
             try {
                 classLoader.loadClass("org.reflections.Reflections");
-                return new Indexer() {
+                return new PredefinedClassResolver() {
                     @Override
                     public List<Class<?>> getClassesForPackage(String packageName) {
                         List<Class<?>> classes = new ArrayList<>();
@@ -201,7 +209,7 @@ public class TypesModel {
 
         }
 
-        if ( clazz.getEnclosingClass() == null ||
+        if (clazz.getEnclosingClass() == null ||
                 (clazz.getEnclosingClass() != null && Modifier.isStatic(clazz.getModifiers()))) {
             boolean added = allClasses.add(clazz);
             if (added) {
