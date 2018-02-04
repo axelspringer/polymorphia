@@ -118,11 +118,11 @@ public class NullHandlingTest {
 
         BasePojo readBasePojo = primitivePojoCodec.decode(new JsonReader(stringWriter.toString()), DecoderContext.builder().build());
 
-        JSONAssert.assertEquals(stringWriter.toString(), "{\n" +
+        JSONAssert.assertEquals("{\n" +
                 "  \"encodeNullsTrue\" : null,\n" +
                 "  \"encodeNullHandlingStrategy_CODEC\" : [],\n" +
                 "  \"encodeNullsShouldDecodeToNull\" : null\n" +
-                "}", true);
+                "}", stringWriter.toString(), true);
 
 
         Assert.assertNull(readBasePojo.encodeNullsFalse);

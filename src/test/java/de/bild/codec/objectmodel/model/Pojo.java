@@ -1,5 +1,6 @@
 package de.bild.codec.objectmodel.model;
 
+import de.bild.codec.objectmodel.AnyThingTest;
 import lombok.*;
 
 import java.util.List;
@@ -14,6 +15,8 @@ import java.util.List;
 public class Pojo {
     String aString;
     Float aFloat;
+    AnyThingTest.NonModelThingProvidingPolymorphicCodec nonModelThingProvidingPolymorphicCodec;
+    AnyThingTest.NonModelThingProvidingStandardCodec nonModelThingProvidingStandardCodec;
     AnotherEnum anotherEnum;
     OnlyOneImplementationInterface onlyOneImplementationInterface;
     NiceEnum niceEnum;
@@ -22,4 +25,6 @@ public class Pojo {
     List<Object> objects;
     NiceEnum niceEnum2;
     SomeInterface someInterface2;
+    AnyThingTest.NonModelThingProvidingPolymorphicCodec yetAnotherNonModelThingProvidingPolymorphicCodec;
+    AnyThingTest.NonModelThingProvidingStandardCodec yetAnothernNonModelThingProvidingStandardCodec;
 }

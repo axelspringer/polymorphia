@@ -2,10 +2,13 @@ package de.bild.codec.objectmodel;
 
 
 import com.mongodb.MongoClient;
-import de.bild.codec.EnumCodecProvider;
 import de.bild.codec.PojoCodecProvider;
+import de.bild.codec.PolymorphicCodec;
 import de.bild.codec.objectmodel.model.*;
-import lombok.AllArgsConstructor;
+import lombok.*;
+import org.bson.BsonReader;
+import org.bson.BsonType;
+import org.bson.BsonWriter;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
@@ -30,6 +33,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Set;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = AnyThingTest.class)
@@ -43,12 +47,17 @@ public class AnyThingTest {
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
                     MongoClient.getDefaultCodecRegistry(),
+                    // since NonModelThingProvidingPolymorphicCodecCodec is a polymorphic codec, encoded entities within polymorphic structures won't need an additional data-wrapping!!
+                    CodecRegistries.fromCodecs(new NonModelThingProvidingPolymorphicCodecCodec()),
+                    CodecRegistries.fromCodecs(new NonModelThingProvidingStandardCodecCodec()),
                     CodecRegistries.fromProviders(
-                            //new EnumCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register(Object.class)
                                     .register(String.class)
                                     .register(Integer.class)
+                                    .register(Float.class)
+                                    .register(NonModelThingProvidingPolymorphicCodec.class)
+                                    .register(NonModelThingProvidingStandardCodec.class)
                                     .register(Pojo.class.getPackage().getName())
                                     //.ignoreTypesMatchingClassNamePredicate(className -> className.contains("$CaseInsensitiveComparator"))
                                     //.ignoreClasses(Integer.class)
@@ -60,6 +69,86 @@ public class AnyThingTest {
 
     @Autowired
     CodecRegistry codecRegistry;
+
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Setter
+    @Getter
+    @ToString
+    @EqualsAndHashCode
+    @Builder
+    public static class NonModelThingProvidingStandardCodec {
+        int anInt;
+    }
+    static class NonModelThingProvidingStandardCodecCodec implements Codec<NonModelThingProvidingStandardCodec> {
+        @Override
+        public NonModelThingProvidingStandardCodec decode(BsonReader reader, DecoderContext decoderContext) {
+            NonModelThingProvidingStandardCodec instance = new NonModelThingProvidingStandardCodec();
+            //reader.readName("standardCodecFieldName");
+            instance.setAnInt(reader.readInt32());
+            return null;
+        }
+
+        @Override
+        public void encode(BsonWriter writer, NonModelThingProvidingStandardCodec value, EncoderContext encoderContext) {
+            //writer.writeName("standardCodecFieldName");
+            writer.writeInt32(value.anInt);
+        }
+
+        @Override
+        public Class<NonModelThingProvidingStandardCodec> getEncoderClass() {
+            return NonModelThingProvidingStandardCodec.class;
+        }
+    }
+
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Setter
+    @Getter
+    @ToString
+    @EqualsAndHashCode
+    @Builder
+    public static class NonModelThingProvidingPolymorphicCodec {
+        int anInt;
+    }
+
+    static class NonModelThingProvidingPolymorphicCodecCodec implements PolymorphicCodec<NonModelThingProvidingPolymorphicCodec> {
+        @Override
+        public NonModelThingProvidingPolymorphicCodec decodeFields(BsonReader reader, DecoderContext decoderContext, NonModelThingProvidingPolymorphicCodec instance) {
+            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                String name = reader.readName();
+                if (name.equals("wasWrittenBySpecializedCodec")) {
+                    instance.anInt = reader.readInt32();
+                } else {
+                    reader.skipValue();
+                }
+            }
+            return instance;
+        }
+
+        @Override
+        public void encodeFields(BsonWriter writer, NonModelThingProvidingPolymorphicCodec instance, EncoderContext encoderContext) {
+            writer.writeName("wasWrittenBySpecializedCodec");
+            writer.writeInt32(instance.anInt);
+        }
+
+        @Override
+        public NonModelThingProvidingPolymorphicCodec newInstance() {
+            return new NonModelThingProvidingPolymorphicCodec();
+        }
+
+        @Override
+        public void verifyFieldsNotNamedLikeAnyDiscriminatorKey(Set<String> discriminatorKeys) throws IllegalArgumentException {
+        }
+
+        @Override
+        public Class<NonModelThingProvidingPolymorphicCodec> getEncoderClass() {
+            return NonModelThingProvidingPolymorphicCodec.class;
+        }
+    }
+
 
 
     @AllArgsConstructor
@@ -74,6 +163,8 @@ public class AnyThingTest {
         Pojo pojo = Pojo.builder()
                 .aString("Test")
                 .aFloat(222.44f)
+                .nonModelThingProvidingPolymorphicCodec(new NonModelThingProvidingPolymorphicCodec(44))
+                .nonModelThingProvidingStandardCodec(new NonModelThingProvidingStandardCodec(98))
                 .anotherEnum(AnotherEnum.XYZ)
                 .onlyOneImplementationInterface(AnotherEnum.XYZ)
                 .niceEnum(NiceEnum.TYPE_A)
@@ -84,12 +175,17 @@ public class AnyThingTest {
                         new Integer(22),
                         new RandomObject(),
                         null,
+                        Float.valueOf(44455.5f),
                         NiceEnum.TYPE_A,
+                        new NonModelThingProvidingPolymorphicCodec(815),
                         new SomeInterface() {},
+                        new NonModelThingProvidingStandardCodec(443),
                         new NonRegisteredExtendingRegisteredClass("Do not persist this property")
                 ))
                 .niceEnum2(NiceEnum.TYPE_B)
                 .someInterface2(NiceEnum.TYPE_A)
+                .yetAnotherNonModelThingProvidingPolymorphicCodec(new NonModelThingProvidingPolymorphicCodec(345678))
+                .yetAnothernNonModelThingProvidingStandardCodec(new NonModelThingProvidingStandardCodec(777))
                 .build();
 
         StringWriter stringWriter = new StringWriter();
@@ -104,10 +200,19 @@ public class AnyThingTest {
         Assert.assertTrue(readPojo.getObjects().get(1).getClass() == Object.class); // Double is not part of domain model, bt Object is!!
         Assert.assertTrue(readPojo.getObjects().get(2).getClass() == Integer.class);
 
-        JSONAssert.assertEquals(stringWriter.toString(), "{\n" +
+        JSONAssert.assertEquals("{\n" +
+                "  \"_t\" : \"Pojo\",\n" +
                 "  \"aString\" : \"Test\",\n" +
                 "  \"aFloat\" : {\n" +
                 "    \"$numberDouble\" : \"222.44000244140625\"\n" +
+                "  },\n" +
+                "  \"nonModelThingProvidingPolymorphicCodec\" : {\n" +
+                "    \"wasWrittenBySpecializedCodec\" : {\n" +
+                "      \"$numberInt\" : \"44\"\n" +
+                "    }\n" +
+                "  },\n" +
+                "  \"nonModelThingProvidingStandardCodec\" : {\n" +
+                "    \"$numberInt\" : \"98\"\n" +
                 "  },\n" +
                 "  \"anotherEnum\" : \"XYZ\",\n" +
                 "  \"onlyOneImplementationInterface\" : {\n" +
@@ -135,10 +240,25 @@ public class AnyThingTest {
                 "        \"$numberInt\" : \"33\"\n" +
                 "      }\n" +
                 "    }, null, {\n" +
+                "      \"_t\" : \"Float\",\n" +
+                "      \"data\" : {\n" +
+                "        \"$numberDouble\" : \"44455.5\"\n" +
+                "      }\n" +
+                "    }, {\n" +
                 "      \"_t\" : \"NiceEnum\",\n" +
                 "      \"data\" : \"TYPE_A\"\n" +
                 "    }, {\n" +
+                "      \"_t\" : \"NonModelThingProvidingPolymorphicCodec\",\n" +
+                "      \"wasWrittenBySpecializedCodec\" : {\n" +
+                "        \"$numberInt\" : \"815\"\n" +
+                "      }\n" +
+                "    }, {\n" +
                 "      \"_t\" : \"Object\"\n" +
+                "    }, {\n" +
+                "      \"_t\" : \"NonModelThingProvidingStandardCodec\",\n" +
+                "      \"data\" : {\n" +
+                "        \"$numberInt\" : \"443\"\n" +
+                "      }\n" +
                 "    }, {\n" +
                 "      \"_t\" : \"RandomObject\",\n" +
                 "      \"anInt\" : {\n" +
@@ -149,7 +269,15 @@ public class AnyThingTest {
                 "  \"someInterface2\" : {\n" +
                 "    \"_t\" : \"NiceEnum\",\n" +
                 "    \"data\" : \"TYPE_A\"\n" +
+                "  },\n" +
+                "  \"yetAnotherNonModelThingProvidingPolymorphicCodec\" : {\n" +
+                "    \"wasWrittenBySpecializedCodec\" : {\n" +
+                "      \"$numberInt\" : \"345678\"\n" +
+                "    }\n" +
+                "  },\n" +
+                "  \"yetAnothernNonModelThingProvidingStandardCodec\" : {\n" +
+                "    \"$numberInt\" : \"777\"\n" +
                 "  }\n" +
-                "}", true);
+                "}\n", stringWriter.toString(), true);
     }
 }

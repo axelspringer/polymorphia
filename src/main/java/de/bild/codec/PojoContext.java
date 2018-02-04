@@ -184,12 +184,17 @@ public class PojoContext {
 
         // if there is a standard codec provided for a type, that needs to be stored along with
         // polymorphic Type information "_t", we need to wrap that codec
-        /** Alternatively a user could always provide a {@link CodecResolver} in order to override this default handling **/
-        // if codecMap contains a mapping for type (may be LazyCodec) that means, that within the chain of registered codecs,
+        /** Alternatively a user could always provide a {@link CodecResolver} in order to override this default handling
+         * Additionally a user can register a {@link PolymorphicCodec} within teh CodecRegistry chain.
+         * That codec can be used to encode/decode a type in polymorphic contexts as well as non-polymorphic contexts
+         * For an example: {@link AnyThingTest} **/
+        // if codecMap contains a mapping for type (may be LazyCodec), this means, that within the chain of registered codecs,
         // there is no codec able to handle the type -> so we need to skip this part and create a reflection based codec
         if (!codecMap.containsKey(type)) {
             Codec<T> standardCodec = typeCodecRegistry.getCodec(type);
-            if (!(standardCodec instanceof TypeCodec)) {
+            if (standardCodec instanceof PolymorphicCodec) {
+                return (PolymorphicCodec)standardCodec; // lovely, user provided a PolymorphicCodec
+            } else if (!(standardCodec instanceof TypeCodec)){
                 return new PolymorphicCodecWrapper<>(standardCodec);
             }
         }

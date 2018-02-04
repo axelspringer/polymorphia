@@ -1,5 +1,15 @@
 Release Notes
 =======
+
+## 2.3.0
+* For standard codecs a wrapper was added to enable to use them within polymorphic structures
+* when PolymorphicCodecs are registered within the chain of codecs, Polymorphia will use them when encoding polymorphic types (instead of using a reflection based codec)
+* PojoCodecProvider.Builder was enriched by two methods to enable excluding classes when building the domain model
+* fine tuning while identifying polymorphic types
+* type hierarchy was broken if super classes are not part of the domain model but some other superclass in the class hierarchy
+* adding support to register a specialized ClassResolver if neither org.springframework.spring-core or org.reflections.reflections are sufficient when resolving classes  
+
+
 ## 2.2.0
 * mongo version > 3.5 support
 * changed enum handling
