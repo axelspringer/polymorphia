@@ -34,6 +34,7 @@ Note: There are plenty of code examples to be found in the tests.
 
 Attention: In order to scan packages you need to provide either [spring-core](https://github.com/spring-projects/spring-framework) library or [org.reflections.reflections](https://github.com/ronmamo/reflections) library in the class path.
 Alternatively you could register all your POJO classes one by one!
+When using Polymorphia > version 2.3.0 you can register your own [ClassResolver](src/main/java/de/bild/codec/ClassResolver.java)
 
 Instantiate the [PojoCodecProvider](src/main/java/de/bild/codec/PojoCodecProvider.java) and add it to the CodecRegistry.
 Example: [PolymorphicReflectionCodecTest](src/test/java/de/bild/codec/PolymorphicReflectionCodecTest.java)
