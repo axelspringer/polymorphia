@@ -199,17 +199,17 @@ public class TypesModelTest {
         TypesModel.ClassHierarchyNode classHierarchyNodeForType = typesModel.getClassHierarchyNodeForType(A.class);
         assertNotNull(classHierarchyNodeForType);
         assertTrue(classHierarchyNodeForType.isPolymorphic());
-        assertEquals(classHierarchyNodeForType.getAllConcreteChildren().size(), 6); // all
+        assertEquals(6, classHierarchyNodeForType.getAllConcreteChildren().size()); // all
 
         classHierarchyNodeForType = typesModel.getClassHierarchyNodeForType(AB.class);
         assertNotNull(classHierarchyNodeForType);
         assertFalse(classHierarchyNodeForType.isPolymorphic());
-        assertEquals(classHierarchyNodeForType.getAllConcreteChildren().size(), 1); // AB
+        assertEquals(1, classHierarchyNodeForType.getAllConcreteChildren().size()); // AB
 
         classHierarchyNodeForType = typesModel.getClassHierarchyNodeForType(AA.class);
         assertNotNull(classHierarchyNodeForType);
         assertTrue(classHierarchyNodeForType.isPolymorphic());
-        assertEquals(classHierarchyNodeForType.getAllConcreteChildren().size(), 4); // AA, AAA, AAB, AAAA
+        assertEquals(4, classHierarchyNodeForType.getAllConcreteChildren().size()); // AA, AAA, AAB, AAAA
 
         classHierarchyNodeForType = typesModel.getClassHierarchyNodeForType(X.class);
         assertNotNull(classHierarchyNodeForType);

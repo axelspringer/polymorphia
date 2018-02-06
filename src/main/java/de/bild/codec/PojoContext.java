@@ -37,15 +37,16 @@ public class PojoContext {
     /**
      * The TypeCodecProvider for all known standard types
      */
+    //@SuppressWarnings("unchecked")
     private static final TypeCodecProvider DEFAULT_TYPE_CODEC_PROVIDER = new TypeCodecProvider() {
         @Override
         public <T> Codec<T> get(Type type, TypeCodecRegistry typeCodecRegistry) {
             if (TypeUtils.isArrayType(type)) {
-                Codec<T> primitiveArrayCodec = ArrayCodec.PrimitiveArrayCodec.get(ReflectionHelper.extractRawClass(type));
+                PrimitiveArrayCodec primitiveArrayCodec = PrimitiveArrayCodec.get(ReflectionHelper.extractRawClass(type));
                 if (primitiveArrayCodec != null) {
                     return primitiveArrayCodec;
                 } else {
-                    return new ArrayCodec(type, typeCodecRegistry);
+                    return new ArrayCodec<>(type, typeCodecRegistry);
                 }
             } else if (type instanceof TypeVariable) {
                 throw new IllegalArgumentException("This registry (and probably no other one as well) can not handle generic type variables.");

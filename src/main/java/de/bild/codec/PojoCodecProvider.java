@@ -56,7 +56,7 @@ public class PojoCodecProvider implements CodecProvider {
             if (clazz != null && clazz.getTypeParameters().length > 0) {
                 LOGGER.warn("Generic classes will only be encoded/decoded with their upper bounds! " +
                         "We could prohibit handling of the pojo codec for those generic classes, " +
-                        "but then user would loose flexibility when subclassing such classes. Class: " + clazz.toGenericString());
+                        "but then user would loose flexibility when subclassing such classes. Class: {}", clazz.toGenericString());
             }
             TypeCodec typeCodec = (TypeCodec) codec;
             // generate dynamic proxy to add CollectibleCodec functionality
@@ -68,12 +68,10 @@ public class PojoCodecProvider implements CodecProvider {
                 proxyInterfaceList.add(CollectibleCodec.class);
                 proxyInterfaceList.add(DelegatingCodec.class); // so users can retrieve the delegating codec form the proxy.
 
-                CollectibleCodec collectibleCodec = (CollectibleCodec) Proxy.newProxyInstance(
+                return (CollectibleCodec) Proxy.newProxyInstance(
                         PojoCodecProvider.class.getClassLoader(),
                         proxyInterfaceList.toArray(new Class<?>[1]),
                         new CollectibleCodecDelegator(typeCodec));
-
-                return collectibleCodec;
             }
         }
         return codec;
@@ -84,7 +82,6 @@ public class PojoCodecProvider implements CodecProvider {
      */
     private static class CollectibleCodecDelegator<T> implements InvocationHandler, CollectibleCodec<T>, DelegatingCodec<T> {
         private final TypeCodec<T> delegatingCodec;
-        private static final Object[] NO_ARGS = {};
 
         public CollectibleCodecDelegator(TypeCodec<T> delegatingCodec) {
             this.delegatingCodec = delegatingCodec;
@@ -176,6 +173,7 @@ public class PojoCodecProvider implements CodecProvider {
 
         /**
          * If you need to provide a mechanism to scan packages for model classes, register a {@link ClassResolver}
+         *
          * @param classResolver the resolver for classes within packages
          * @return this Builder
          */
@@ -191,6 +189,7 @@ public class PojoCodecProvider implements CodecProvider {
 
         /**
          * If you need to exclude private inner classes form the domain model, use a Predicate
+         *
          * @param ignoreTypesMatchingClassNamePredicates
          * @return the Builder
          */
@@ -201,6 +200,7 @@ public class PojoCodecProvider implements CodecProvider {
 
         /**
          * If ypu can point to the classes to be ignored, you can do this here
+         *
          * @return the Builder
          */
         public Builder ignoreClasses(Class<?>... ignoreClasses) {

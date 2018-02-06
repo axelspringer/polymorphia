@@ -13,6 +13,10 @@ import java.util.Map;
 
 public abstract class ReflectionHelper {
 
+    private ReflectionHelper() {
+        throw new IllegalStateException("Never meant to be instantiated.");
+    }
+
     /**
      * calculates all fields of class hierarchy
      *
@@ -157,7 +161,7 @@ public abstract class ReflectionHelper {
      * @return the valid fields
      */
     private static List<Field> getValidFields(final Field[] fields, final boolean returnFinalFields) {
-        final List<Field> validFields = new ArrayList<Field>();
+        final List<Field> validFields = new ArrayList<>();
 
         for (final Field field : fields) {
             if (!Modifier.isStatic(field.getModifiers()) && (returnFinalFields || !Modifier.isFinal(field.getModifiers()))) {

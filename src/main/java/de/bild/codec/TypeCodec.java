@@ -1,10 +1,8 @@
 package de.bild.codec;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.bson.BsonNull;
 import org.bson.BsonValue;
 import org.bson.codecs.Codec;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
@@ -15,8 +13,6 @@ import org.slf4j.LoggerFactory;
  * @param <T> the value type
  */
 public interface TypeCodec<T> extends Codec<T> {
-    Logger LOGGER = LoggerFactory.getLogger(TypeCodec.class);
-
     /**
      * Override this method if your Codec needs to supply default values as replacements for null values.
      * @return null or a default value
@@ -30,17 +26,17 @@ public interface TypeCodec<T> extends Codec<T> {
     }
 
     default T generateIdIfAbsentFromDocument(T document) {
-        LOGGER.warn("generateIdIfAbsentFromDocument() should be overridden if used!");
+        LoggerFactory.getLogger(TypeCodec.class).warn("generateIdIfAbsentFromDocument() should be overridden if used!");
         return document;
     }
 
     default boolean documentHasId(T document) {
-        LOGGER.warn("documentHasId() should be overridden if used!");
+        LoggerFactory.getLogger(TypeCodec.class).warn("documentHasId() should be overridden if used!");
         return true;
     }
 
     default BsonValue getDocumentId(T document) {
-        LOGGER.warn("getDocumentId() should be overridden if used!");
+        LoggerFactory.getLogger(TypeCodec.class).warn("getDocumentId() should be overridden if used!");
         return BsonNull.VALUE;
     }
 }

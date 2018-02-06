@@ -11,7 +11,7 @@ import java.lang.reflect.*;
  * @param <T> the value type
  */
 public abstract class AbstractTypeCodec<T> implements TypeCodec<T> {
-    protected final Logger logger = LoggerFactory.getLogger(getClass());
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractTypeCodec.class);
 
     final TypeCodecRegistry typeCodecRegistry;
     final Class<T> encoderClass;
@@ -58,7 +58,7 @@ public abstract class AbstractTypeCodec<T> implements TypeCodec<T> {
         try {
             return defaultConstructor.newInstance();
         } catch (InvocationTargetException | IllegalAccessException | InstantiationException e) {
-            logger.warn("Could not instantiate new instance" + defaultConstructor.getName());
+            LOGGER.warn("Could not instantiate new instance {}", defaultConstructor.getName());
             throw new InstanceCreationException("Could not instantiate new instance for constructor: " + defaultConstructor.getName() + " Please provide default constructor.", e);
         }
     }
