@@ -12,6 +12,7 @@ import org.bson.BsonWriter;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecConfigurationException;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +23,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicReflectionCodec.class);
     MappedField<T, Object> idField;
+    private static IdGenerator<ObjectId> DEFAULT_ID_GENERATOR = new ObjectIdGenerator();
 
     /**
      * a list of the fields to map
@@ -51,14 +53,25 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
                         idField = mappedField;
                         Id idAnnotation = idField.getAnnotation(Id.class);
 
-                        Class<? extends IdGenerator> idGeneratorClass = idAnnotation.value();
                         isCollectible = idAnnotation.collectible();
-                        try {
-                            Constructor<? extends IdGenerator> idGeneratorConstructor = idGeneratorClass.getDeclaredConstructor();
-                            idGeneratorConstructor.setAccessible(true);
-                            idGenerator = idGeneratorConstructor.newInstance();
-                        } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
-                            throw new IllegalArgumentException("Could not create instance of IdGenerator for class " + type + " Generator class: " + idGeneratorClass, e);
+
+                        if (isCollectible) {
+                            Class<? extends IdGenerator> idGeneratorClass = idAnnotation.value();
+                            if (idGeneratorClass == Id.DefaultIdGenerator.class) {
+                                if (idField.getField().getType() != ObjectId.class) {
+                                    LOGGER.error("The id field for pojo class {} is of type {} is not able to consume ObjectIds values from ObjectIdGenerator. Please define a proper ObjectIdGenerator along with annotation Id(value=Generator.class)", getEncoderClass(), idField.getFieldTypePair().getRealType());
+                                    throw new IllegalArgumentException("The id field for pojo class " + getEncoderClass() + " is of type " + idField.getFieldTypePair().getRealType() + " is not able to consume ObjectIds values from ObjectIdGenerator. Please define a proper ObjectIdGenerator along with annotation Id(value=Generator.class)");
+                                }
+                                idGenerator = DEFAULT_ID_GENERATOR;
+                            } else {
+                                try {
+                                    Constructor<? extends IdGenerator> idGeneratorConstructor = idGeneratorClass.getDeclaredConstructor();
+                                    idGeneratorConstructor.setAccessible(true);
+                                    idGenerator = idGeneratorConstructor.newInstance();
+                                } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+                                    throw new IllegalArgumentException("Could not create instance of IdGenerator for class " + type + " Generator class: " + idGeneratorClass, e);
+                                }
+                            }
                         }
                     } else {
                         throw new IllegalArgumentException("Id field is annotated multiple times in class hierarchy! Class " + encoderClass);

@@ -13,7 +13,9 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface Id {
-    Class<? extends IdGenerator> value() default ObjectIdGenerator.class;
+    Class<? extends IdGenerator> value() default DefaultIdGenerator.class;
 
     boolean collectible() default false;
+
+    final class DefaultIdGenerator extends ObjectIdGenerator {}
 }

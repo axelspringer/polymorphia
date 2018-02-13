@@ -272,6 +272,10 @@ public class MappedField<T, F> {
         }
     }
 
+    public FieldTypePair getFieldTypePair() {
+        return fieldTypePair;
+    }
+
     public boolean isIdField() {
         return hasAnnotation(Id.class);
     }

@@ -5,6 +5,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import de.bild.codec.EnumCodecProvider;
 import de.bild.codec.PojoCodecProvider;
+import org.bson.codecs.Codec;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.junit.Test;
@@ -42,6 +43,9 @@ public class IdTest {
         }
     }
 
+    @Autowired
+    CodecRegistry codecRegistry;
+
     @Test
     public void testStrangeId() {
         final MongoCollection<EntityWithStrangeId> collection = mongoClient.getDatabase(DB_NAME).getCollection("documents").withDocumentClass(EntityWithStrangeId.class);
@@ -51,5 +55,11 @@ public class IdTest {
         EntityWithStrangeId foundEntityWithStrangeId = collection.find(Filters.eq("_id", entityWithStrangeId.id)).first();
         assertThat(foundEntityWithStrangeId, is(not(nullValue())));
         assertThat(foundEntityWithStrangeId.id, equalTo(entityWithStrangeId.id));
+    }
+
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testMissingGeneratorClass() {
+        Codec<EntityWithMissingGenerator> codec = codecRegistry.get(EntityWithMissingGenerator.class);
     }
 }
