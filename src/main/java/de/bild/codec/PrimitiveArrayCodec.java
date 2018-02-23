@@ -19,7 +19,7 @@ import java.util.stream.LongStream;
  * Codecs for primitive arrays
  */
 public enum PrimitiveArrayCodec implements Codec {
-    BYTE(byte.class) {
+    BYTE(byte[].class) {
         @Override
         public void encode(BsonWriter writer, Object value, EncoderContext encoderContext) {
             writer.writeBinaryData(new BsonBinary((byte[])value));
@@ -41,7 +41,7 @@ public enum PrimitiveArrayCodec implements Codec {
         }
 
     },
-    BOOLEAN(boolean.class) {
+    BOOLEAN(boolean[].class) {
         @Override
         public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
             for (boolean i : (boolean[]) value) {
@@ -63,7 +63,7 @@ public enum PrimitiveArrayCodec implements Codec {
             return booleans;
         }
     },
-    CHARACTER(char.class) {
+    CHARACTER(char[].class) {
         @Override
         public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
             for (char i : (char[]) value) {
@@ -85,7 +85,7 @@ public enum PrimitiveArrayCodec implements Codec {
             return chars;
         }
     },
-    FLOAT(float.class) {
+    FLOAT(float[].class) {
         @Override
         public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
             for (float i : (float[]) value) {
@@ -107,7 +107,7 @@ public enum PrimitiveArrayCodec implements Codec {
             return floats;
         }
     },
-    INTEGER(int.class) {
+    INTEGER(int[].class) {
         @Override
         public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
             for (int i : (int[]) value) {
@@ -128,7 +128,7 @@ public enum PrimitiveArrayCodec implements Codec {
             return builder.build().toArray();
         }
     },
-    LONG(long.class) {
+    LONG(long[].class) {
         @Override
         public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
             for (long i : (long[]) value) {
@@ -145,7 +145,7 @@ public enum PrimitiveArrayCodec implements Codec {
             return builder.build().toArray();
         }
     },
-    SHORT(short.class) {
+    SHORT(short[].class) {
         @Override
         public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
             for (short i : (short[]) value) {
@@ -167,7 +167,7 @@ public enum PrimitiveArrayCodec implements Codec {
             return shorts;
         }
     },
-    DOUBLE(double.class) {
+    DOUBLE(double[].class) {
         @Override
         public void encodeInternal(BsonWriter writer, Object value, EncoderContext encoderContext) {
             for (double i : (double[]) value) {
@@ -212,8 +212,7 @@ public enum PrimitiveArrayCodec implements Codec {
 
     public static PrimitiveArrayCodec get(Class<?> arrayClass) {
         if (arrayClass != null) {
-            Class<?> componentType = arrayClass.getComponentType();
-            return PRIMITIVE_CLASS_TO_TYPE.get(componentType);
+            return PRIMITIVE_CLASS_TO_TYPE.get(arrayClass);
         }
         return null;
     }
