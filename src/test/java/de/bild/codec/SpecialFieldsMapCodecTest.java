@@ -16,12 +16,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = SpecialFieldsMapCodecTest.class)
@@ -79,13 +76,25 @@ public class SpecialFieldsMapCodecTest {
         richText.put("someOtherProperty", 11);
         richText.put("document", new Document("p1", new Date()));
 
+        List<Document> value = Arrays.asList(
+                new Document("key1", "value1").append("key2", "value2"),
+                new Document("key1", "value1").append("key2", "value2"),
+                new Document("key1", "value1").append("key2", "value2")
+        );
+
+
+        richText.put("blocks", value);
+
         mongoCollection.insertOne(richText);
 
-
         RichTextData richTextRead = mongoCollection.find().first();
+
+
         assertNotNull(richTextRead);
         assertThat(richTextRead.getEntityMap(), IsInstanceOf.instanceOf(Map.class));
         assertThat(richTextRead.getEntityMap().get("0"), IsInstanceOf.instanceOf(RichTextData.EntityMapEntry.class));
+        assertEquals(richTextRead.get("blocks")
+                , value);
 
 
     }

@@ -88,24 +88,45 @@ public class SpecialFieldsMapCodec<T extends Map<String, Object>> extends Abstra
             writer.writeNull();
         }
         else {
-            writer.writeStartDocument();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                writer.writeName(entry.getKey());
-                Object value = entry.getValue();
-
-                Codec fieldMappingCodec = fieldMappingCodecs.get(entry.getKey());
-                if (fieldMappingCodec != null) {
-                    fieldMappingCodec.encode(writer, value, encoderContext);
-                } else {
-                    if (value != null) {
-                        Codec codec = codecRegistry.get(value.getClass());
-                        codec.encode(writer, value, encoderContext);
-                    } else {
-                        writer.writeNull();
-                    }
-                }
-            }
-            writer.writeEndDocument();
+            encodeMap(writer, map, encoderContext);
         }
+    }
+
+
+    private void encodeMap(BsonWriter writer, Map<String, Object> map, EncoderContext encoderContext){
+        writer.writeStartDocument();
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            writer.writeName(entry.getKey());
+            Object value = entry.getValue();
+
+            Codec fieldMappingCodec = fieldMappingCodecs.get(entry.getKey());
+            if (fieldMappingCodec != null) {
+                fieldMappingCodec.encode(writer, value, encoderContext);
+            } else {
+                encodeValue(writer, encoderContext, value);
+            }
+        }
+        writer.writeEndDocument();
+    }
+
+    private void encodeValue(BsonWriter writer, EncoderContext encoderContext, Object value) {
+        if (value == null) {
+            writer.writeNull();
+        } else if (value instanceof Iterable) {
+            writeIterable(writer, (Iterable<Object>) value, encoderContext);
+        } else if (value instanceof Map) {
+            encodeMap(writer, (Map<String, Object>) value, encoderContext);
+        } else {
+            Codec codec = codecRegistry.get(value.getClass());
+            codec.encode(writer, value, encoderContext);
+        }
+    }
+
+    private void writeIterable(final BsonWriter writer, final Iterable<Object> list, final EncoderContext encoderContext) {
+        writer.writeStartArray();
+        for (final Object value : list) {
+            encodeValue(writer, encoderContext, value);
+        }
+        writer.writeEndArray();
     }
 }

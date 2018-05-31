@@ -1,6 +1,9 @@
 Release Notes
 =======
 
+## 2.3.1
+* minor fix in SpecialFieldsMapCodec
+
 ## 2.3.0
 * For standard codecs a wrapper was added to enable to use them within polymorphic structures
 * when PolymorphicCodecs are registered within the chain of codecs, Polymorphia will use them when encoding polymorphic types (instead of using a reflection based codec)
