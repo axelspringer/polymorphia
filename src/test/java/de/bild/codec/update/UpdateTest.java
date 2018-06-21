@@ -25,10 +25,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static com.mongodb.client.model.Updates.*;
 import static org.junit.Assert.assertNotNull;
@@ -123,6 +120,7 @@ public class UpdateTest {
                 // set("listOfPolymorphicTypes", buildNonGenericClassOnTheFly(Arrays.asList(new A(123), new B(456f)), List.class, Type.class),
                 set("listOfPolymorphicTypes", new PolymorphicTypeList(Arrays.asList(new A(123), new B(456f)))),
                 currentDate("creationDate"),
+                set("editors", Collections.emptyList()),
                 currentTimestamp("_id"));
 
         FindOneAndUpdateOptions findOptions = new FindOneAndUpdateOptions();

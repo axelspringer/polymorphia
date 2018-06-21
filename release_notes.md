@@ -1,5 +1,7 @@
 Release Notes
 =======
+## 2.3.2
+* minor (dirty) fix for parameterized List/Map/Set codecs. If they fail to create, the mongo driver default gets chosen.
 
 ## 2.3.1
 * minor fix in SpecialFieldsMapCodec

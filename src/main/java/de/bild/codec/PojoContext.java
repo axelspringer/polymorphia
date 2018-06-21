@@ -12,6 +12,7 @@ import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.IterableCodec;
+import org.bson.codecs.configuration.CodecConfigurationException;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,20 +62,24 @@ public class PojoContext {
                 return new EnumCodec(ReflectionHelper.extractRawClass(type));
             }
 
-            // List ?
-            Codec<T> codec = ListTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
-            if (codec != null) {
-                return codec;
-            }
-            // Set ?
-            codec = SetTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
-            if (codec != null) {
-                return codec;
-            }
-            // Map ?
-            codec = MapTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
-            if (codec != null) {
-                return codec;
+            try {
+                // List ?
+                Codec<T> codec = ListTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
+                if (codec != null) {
+                    return codec;
+                }
+                // Set ?
+                codec = SetTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
+                if (codec != null) {
+                    return codec;
+                }
+                // Map ?
+                codec = MapTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
+                if (codec != null) {
+                    return codec;
+                }
+            } catch (CodecConfigurationException e) {
+                LOGGER.info("Can't create advanced List/Map/Set codec for {}. Fall back to mongo db driver defaults.", type, e);
             }
             return null;
         }
