@@ -9,6 +9,7 @@ import org.bson.codecs.EncoderContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Type;
 import java.util.Collection;
 
@@ -68,5 +69,24 @@ public abstract class CollectionTypeCodec<C extends Collection<V>, V> extends Ab
     @Override
     public C defaultInstance() {
         return newInstance();
+    }
+
+    @Override
+    protected Constructor<C> getDefaultConstructor(Class<C> clazz) {
+        Constructor<C> defaultConstructor = null;
+        try {
+            defaultConstructor = super.getDefaultConstructor(clazz);
+        } catch (IllegalArgumentException e) {
+            LOGGER.debug("This collection type {} can not be instantiated via default constructor.", clazz);
+        }
+        return defaultConstructor;
+    }
+
+    @Override
+    public C newInstance() {
+        if (defaultConstructor != null) {
+            return super.newInstance();
+        }
+        throw new IllegalStateException("This codec " + this + " cannot be used for decoding as no default constructor could be found for class: " + getEncoderClass());
     }
 }

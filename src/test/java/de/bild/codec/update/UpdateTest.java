@@ -11,6 +11,7 @@ import de.bild.codec.EnumCodecProvider;
 import de.bild.codec.PojoCodecProvider;
 import de.bild.codec.annotations.Id;
 import org.bson.BsonTimestamp;
+import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.conversions.Bson;
@@ -28,7 +29,9 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import java.util.*;
 
 import static com.mongodb.client.model.Updates.*;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = UpdateTest.class)
@@ -89,7 +92,10 @@ public class UpdateTest {
         Action action;
         String user;
         List<PolymorphicType> listOfPolymorphicTypes;
+    }
 
+    static class ExtendedPojo {
+        List<String> someListProperty;
     }
 
     enum Action {
@@ -120,19 +126,28 @@ public class UpdateTest {
                 // set("listOfPolymorphicTypes", buildNonGenericClassOnTheFly(Arrays.asList(new A(123), new B(456f)), List.class, Type.class),
                 set("listOfPolymorphicTypes", new PolymorphicTypeList(Arrays.asList(new A(123), new B(456f)))),
                 currentDate("creationDate"),
-                set("editors", Collections.emptyList()),
+                set("emptyListProperty", Collections.emptyList()),
+                set("emptySetProperty", Collections.emptySet()),
+                set("emptyMapProperty", Collections.emptyMap()),
+                set("someListProperty", Arrays.asList("Hans", "Wurst")), // will be written to db, but ignored when reading
                 currentTimestamp("_id"));
 
         FindOneAndUpdateOptions findOptions = new FindOneAndUpdateOptions();
         findOptions.upsert(true);
         findOptions.returnDocument(ReturnDocument.AFTER);
 
-        MongoCollection<Pojo> pojoMongoCollection = mongoClient.getDatabase("test").getCollection("documents").withDocumentClass(Pojo.class);
+        MongoCollection<Document> collection = mongoClient.getDatabase("test").getCollection("documents");
+        MongoCollection<Pojo> pojoMongoCollection = collection.withDocumentClass(Pojo.class);
 
         Pojo pojo = pojoMongoCollection.findOneAndUpdate(Filters.and(Filters.lt(DBCollection.ID_FIELD_NAME, 0),
                 Filters.gt(DBCollection.ID_FIELD_NAME, 0)), update, findOptions);
 
         assertNotNull(pojo.id);
+
+        // finally check if non pojo fields have been updated too
+        MongoCollection<ExtendedPojo> extPojoMongoCollection = collection.withDocumentClass(ExtendedPojo.class);
+        ExtendedPojo extendedPojo = extPojoMongoCollection.find(Filters.eq(DBCollection.ID_FIELD_NAME, pojo.id)).first();
+        assertEquals(extendedPojo.someListProperty, Arrays.asList("Hans", "Wurst"));
     }
 
 

@@ -8,6 +8,7 @@ import org.apache.commons.lang3.reflect.TypeUtils;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.BsonWriter;
+import org.bson.Document;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
@@ -17,6 +18,7 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
@@ -62,25 +64,6 @@ public class PojoContext {
                 return new EnumCodec(ReflectionHelper.extractRawClass(type));
             }
 
-            try {
-                // List ?
-                Codec<T> codec = ListTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
-                if (codec != null) {
-                    return codec;
-                }
-                // Set ?
-                codec = SetTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
-                if (codec != null) {
-                    return codec;
-                }
-                // Map ?
-                codec = MapTypeCodec.getCodecIfApplicable(type, typeCodecRegistry);
-                if (codec != null) {
-                    return codec;
-                }
-            } catch (CodecConfigurationException e) {
-                LOGGER.info("Can't create advanced List/Map/Set codec for {}. Fall back to mongo db driver defaults.", type, e);
-            }
             return null;
         }
     };
@@ -292,26 +275,75 @@ public class PojoContext {
             return codec;
         }
 
-        /*
-         * now try pojo codec with potentially polymorphic structures
-         */
-        Set<Type> validTypesForType = typesModel.getAssignableTypesWithinClassHierarchy(type);
-
-        if (validTypesForType == null || validTypesForType.isEmpty()) {
-            LOGGER.debug("Could not find concrete implementation for type {}. Maybe another codec is able to handle te class?!", type);
-            return null;
-        } else if (validTypesForType.size() > 1 || isPolymorphic(type, validTypesForType.iterator().next())) {
-            LOGGER.debug("Creating polymorphic codec for type {} with valid types {}", type, validTypesForType);
-            return new PolymorphicReflectionCodec<>(type, validTypesForType, typeCodecRegistry, this);
-        } else {
-            LOGGER.debug("Creating simple reflection based codec for type {} (generic type {}) as only one concrete implementation known.", type, validTypesForType);
-            Type singleType = validTypesForType.iterator().next();
-            codec = resolve(singleType, typeCodecRegistry);
-            if (codec != null) {
-                return codec;
+        Class rawClass = ReflectionHelper.extractRawClass(type);
+        if (rawClass != null && List.class.isAssignableFrom(rawClass)) {
+            // List ?
+            Type listInterface = ReflectionHelper.findInterface(type, List.class);
+            if (listInterface instanceof ParameterizedType) {
+                ParameterizedType parameterizedType = (ParameterizedType) listInterface;
+                try {
+                    codec = new ListTypeCodec(rawClass, parameterizedType.getActualTypeArguments()[0], typeCodecRegistry);
+                } catch (CodecConfigurationException cce) {
+                    // unfortunately there is no elegant way to figure out, if a codec for the valueType can be build within the codecRegistry
+                    // if all codecs have been tested an exception will be raised, this then indicates, that the mongo java driver codecs for lists need to be chosen
+                    LOGGER.debug("Can't create advanced (generic list) codec for {}. Fall back to mongo db driver defaults.", parameterizedType, cce.getMessage());
+                }
+            }
+        } else if (rawClass != null && Set.class.isAssignableFrom(rawClass)) {
+            // Set ?
+            Type setInterface = ReflectionHelper.findInterface(type, Set.class);
+            if (setInterface instanceof ParameterizedType) {
+                ParameterizedType parameterizedType = (ParameterizedType) setInterface;
+                try {
+                    codec = new SetTypeCodec(rawClass, parameterizedType.getActualTypeArguments()[0], typeCodecRegistry);
+                } catch (CodecConfigurationException cce) {
+                    // unfortunately there is no elegant way to figure out, if a codec for the valueType can be build within the codecRegistry
+                    // if all codecs have been tested an exception will be raised, this then indicates, that the mongo java driver codecs for sets need to be chosen
+                    LOGGER.debug("Can't create advanced (generic set) codec for {}. Fall back to mongo db driver defaults.", parameterizedType, cce.getMessage());
+                }
             }
         }
-        return null;
+        else if (Document.class.isAssignableFrom(rawClass)) {
+            // if Document.class let mongo java driver handle this class directly
+            codec = null;
+        } else if (rawClass != null && Map.class.isAssignableFrom(rawClass)) {
+            // Map ?
+            Type setInterface = ReflectionHelper.findInterface(type, Map.class);
+            if (setInterface instanceof ParameterizedType) {
+                ParameterizedType parameterizedType = (ParameterizedType) setInterface;
+                Type keyType = parameterizedType.getActualTypeArguments()[0];
+                Type valueType = parameterizedType.getActualTypeArguments()[1];
+                try {
+                    if (keyType.equals(String.class)) {
+                        codec = new SimpleMapTypeCodec(rawClass, valueType, typeCodecRegistry);
+                    } else {
+                        codec = new ComplexMapTypeCodec(rawClass, keyType, valueType, typeCodecRegistry);
+                    }
+                } catch (CodecConfigurationException cce) {
+                    // unfortunately there is no elegant way to figure out, if a codec for the valueType can be build within the codecRegistry
+                    // if all codecs have been tested an exception will be raised, this then indicates, that the mongo java driver codecs for maps need to be chosen
+                    LOGGER.debug("Can't create advanced (generic map) codec for {}. Fall back to mongo db driver defaults.", parameterizedType, cce.getMessage());
+                }
+            }
+        } else {
+            /*
+             * now try pojo codec with potentially polymorphic structures
+             */
+            Set<Type> validTypesForType = typesModel.getAssignableTypesWithinClassHierarchy(type);
+
+            if (validTypesForType == null || validTypesForType.isEmpty()) {
+                LOGGER.debug("Could not find concrete implementation for type {}. Maybe another codec is able to handle te class?!", type);
+                return null;
+            } else if (validTypesForType.size() > 1 || isPolymorphic(type, validTypesForType.iterator().next())) {
+                LOGGER.debug("Creating polymorphic codec for type {} with valid types {}", type, validTypesForType);
+                return new PolymorphicReflectionCodec<>(type, validTypesForType, typeCodecRegistry, this);
+            } else {
+                LOGGER.debug("Creating simple reflection based codec for type {} (generic type {}) as only one concrete implementation known.", type, validTypesForType);
+                Type singleType = validTypesForType.iterator().next();
+                codec = resolve(singleType, typeCodecRegistry);
+            }
+        }
+        return codec;
     }
 
 
