@@ -1,8 +1,10 @@
 package de.bild.codec;
 
+import org.bson.BsonDocument;
 import org.bson.BsonNull;
 import org.bson.BsonValue;
 import org.bson.codecs.Codec;
+import org.bson.conversions.Bson;
 import org.slf4j.LoggerFactory;
 
 
@@ -38,5 +40,9 @@ public interface TypeCodec<T> extends Codec<T> {
     default BsonValue getDocumentId(T document) {
         LoggerFactory.getLogger(TypeCodec.class).warn("getDocumentId() should be overridden if used!");
         return BsonNull.VALUE;
+    }
+
+    default Bson getTypeFilter() {
+        return new BsonDocument();
     }
 }

@@ -25,7 +25,7 @@ Release notes are available [release_notes.md](release_notes.md).
 <dependency>
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>2.3.3</version>
+    <version>2.3.4</version>
 </dependency>
 ```
 
@@ -41,38 +41,38 @@ Example: [PolymorphicReflectionCodecTest](src/test/java/de/bild/codec/Polymorphi
 
 One motivation to start this project was the missing feature of existing Pojo-codec solutions to easily model polymorphic structures and write/read those to/from the database (e.g.[https://github.com/mongodb/morphia/issues/22](https://github.com/mongodb/morphia/issues/22))
 
-Simple example @see example [PolymorphicTest](src/test/java/de/bild/codec/PolymorphicTest.java)
+Simple example @see example [PolymorphicCollectionTest](src/test/java/de/bild/codec/PolymorphicCollectionTest.java)
 ```java
-        public interface Shape {
-        }
+        public interface MyCollectionThing {}
+    
+        public interface Shape extends MyCollectionThing {}
     
         public class Circle implements Shape {
-            String name;
+            int radius;
         }
     
         public class Square implements Shape  {
-            int foo;
+            int x;
         }
-        
-        enum FinalShapes implements Shape {
-            ONE_METER_CIRCLE,
-            SMALL_TRIANGLE;
-        }
-        
+                
         public static void main() {
-            com.mongodb.client.MongoCollection<Shape> collection = database.getCollection("shapes").withDocumentClass(Shape.class);
-            collection.insertMany(Arrays.asList(new Circle(), new Square(), FinalShapes.ONE_METER_CIRCLE, new Square(), new Circle()));
+            MongoCollection<MyCollectionThing> collection = database.getCollection("things").withDocumentClass(MyCollectionThing.class);
+    
+            Dog brownDog = new Dog("brown");
+            Tuna oldTuna = new Tuna(123);
+            Circle smallCircle = new Circle(2);
+            Cat generalCat = new Cat(9);
+            Rectangle rectangle = new Rectangle(2, 5);
+            Circle mediumCircle = new Circle(5);
+            Square square = new Square(4);
+        
+            // insert all items into collection of type MongoCollection<MyCollectionThing>
+            collection.insertMany(Arrays.asList(brownDog, oldTuna, smallCircle, generalCat, rectangle, mediumCircle, square));
             
-            for (Shape shape : collection.find()) {
-                System.out.println("Shape : " + shape.getClass().getSimpleName());
-            }
-            
-            // would print
-            // Shape : Circle
-            // Shape : Square
-            // Shape : ONE_METER_CIRCLE 
-            // Shape : Square
-            // Shape : Circle
+            // only find things in collection of type Shape.class...
+            MatcherAssert.assertThat(collection.find(getFilterForClass(Shape.class)), 
+                    IsIterableContainingInAnyOrder.containsInAnyOrder(rectangle, square, smallCircle, mediumCircle));
+
         }
         
 ```

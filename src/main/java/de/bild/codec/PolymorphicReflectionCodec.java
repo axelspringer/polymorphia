@@ -1,11 +1,13 @@
 package de.bild.codec;
 
+import com.mongodb.client.model.Filters;
 import de.bild.codec.annotations.Discriminator;
 import de.bild.codec.annotations.DiscriminatorFallback;
 import de.bild.codec.annotations.DiscriminatorKey;
 import org.bson.*;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
+import org.bson.conversions.Bson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,13 +24,15 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
     final Map<Class<?>, String> mainDiscriminators = new HashMap<>();
     final Map<Class<?>, String> discriminatorKeys = new HashMap<>();
     final Set<String> allDiscriminatorKeys = new HashSet<>();
+    final Bson typeFilter;
+
     PolymorphicCodec<T> fallBackCodec;
     final boolean isCollectible;
 
     public PolymorphicReflectionCodec(Type type, Set<Type> validTypes, TypeCodecRegistry typeCodecRegistry, PojoContext pojoContext) {
         this.clazz = AbstractTypeCodec.extractClass(type);
         boolean isAnyCodecCollectible = false;
-
+        List<Bson> allDiscriminatorKeyValueFilters = new ArrayList<>();
         for (Type validType : validTypes) {
             Class<T> clazz = AbstractTypeCodec.extractClass(validType);
             // ignore interfaces and also ignore abstract classes
@@ -70,8 +74,8 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
                     allDiscriminators.add(mainDiscriminator);
                 }
 
-
                 for (String discriminator : allDiscriminators) {
+                    allDiscriminatorKeyValueFilters.add(Filters.eq(discriminatorKey, discriminator));
                     PolymorphicCodec<T> registeredCodec = this.discriminatorToCodec.putIfAbsent(discriminator, codecFor);
                     if (registeredCodec != null) {
                         LOGGER.warn("Cannot register multiple classes ({}, {}) for the same discriminator {} ", clazz, registeredCodec.getEncoderClass(), discriminator);
@@ -86,6 +90,7 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
         for (PolymorphicCodec<T> typeCodec : classToCodec.values()) {
             typeCodec.verifyFieldsNotNamedLikeAnyDiscriminatorKey(allDiscriminatorKeys);
         }
+        this.typeFilter = Filters.or(allDiscriminatorKeyValueFilters);
 
         // if any of the subclass codecs need  application id generation, mark this codec as being collectible
         this.isCollectible = isAnyCodecCollectible;
@@ -260,5 +265,23 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
             return codecForValue.getDocumentId(document);
         }
         return null;
+    }
+
+    /**
+     * Example:
+     * <code>
+     *     Or Filter{
+                filters=[
+                    Filter{fieldName='_t', value=Square},
+                    Filter{fieldName='_discriminatorKey', value=Circle}
+                ]
+            }
+     * </code>
+     *
+     * @return the filter needed to find all types this codec is responsible for
+     */
+    @Override
+    public Bson getTypeFilter() {
+        return typeFilter;
     }
 }

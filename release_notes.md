@@ -1,5 +1,8 @@
 Release Notes
 =======
+## 2.3.4
+* adding example/support for searching a whole super-class tree in a general collection that stores anything (@see PolymorphicCollectionTest) 
+
 ## 2.3.3
 * a slightly cleaner way to handle parameterized List/Map/Set codecs. If they fail to create, the mongo driver default gets chosen.
 * unfortunately there is no easy way to figure out if the CodecRegistry could provide a codec for a given type. Eventually an exception is being thrown instead of returning just null

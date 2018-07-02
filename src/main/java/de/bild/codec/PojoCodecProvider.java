@@ -3,6 +3,7 @@ package de.bild.codec;
 
 import de.bild.codec.annotations.DecodeUndefinedHandlingStrategy;
 import de.bild.codec.annotations.EncodeNullHandlingStrategy;
+import org.bson.BsonDocument;
 import org.bson.BsonReader;
 import org.bson.BsonValue;
 import org.bson.BsonWriter;
@@ -12,6 +13,7 @@ import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecProvider;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.conversions.Bson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +77,14 @@ public class PojoCodecProvider implements CodecProvider {
             }
         }
         return codec;
+    }
+
+    public Bson getTypeFilter(Class<?> clazz, CodecRegistry registry) {
+        Codec<?> codec = get(clazz, registry);
+        if (codec instanceof TypeCodec) {
+            return ((TypeCodec) codec).getTypeFilter();
+        }
+        return new BsonDocument();//noop filter
     }
 
     /**
