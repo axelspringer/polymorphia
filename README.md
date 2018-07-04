@@ -70,8 +70,15 @@ Simple example @see example [PolymorphicCollectionTest](src/test/java/de/bild/co
             collection.insertMany(Arrays.asList(brownDog, oldTuna, smallCircle, generalCat, rectangle, mediumCircle, square));
             
             // only find things in collection of type Shape.class...
-            MatcherAssert.assertThat(collection.find(getFilterForClass(Shape.class)), 
-                    IsIterableContainingInAnyOrder.containsInAnyOrder(rectangle, square, smallCircle, mediumCircle));
+            for (MyCollectionThing myCollectionThing : collection.find(POJO_CODEC_PROVIDER.getTypeFilter(Shape.class, codecRegistry))) {
+                System.out.println(myCollectionThing.getClass());
+            }
+        
+            //would print---
+            //Circle
+            //Rectangle
+            //Circle
+            //Square
 
         }
         
