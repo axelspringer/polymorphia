@@ -43,6 +43,6 @@ public interface TypeCodec<T> extends Codec<T> {
     }
 
     default Bson getTypeFilter() {
-        return new BsonDocument();
+        return null;
     }
 }

@@ -84,7 +84,7 @@ public class PojoCodecProvider implements CodecProvider {
         if (codec instanceof TypeCodec) {
             return ((TypeCodec) codec).getTypeFilter();
         }
-        return new BsonDocument();//noop filter
+        return null;
     }
 
     /**
