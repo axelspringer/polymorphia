@@ -1,5 +1,9 @@
 Release Notes
 =======
+## 2.3.5
+* allow for non generic List, Map, Set within Pojos
+* filter for specific type within mongo collection: return null, if super class hierarchy can't be determined
+
 ## 2.3.4
 * adding example/support for searching a whole super-class tree in a general collection that stores anything (@see PolymorphicCollectionTest) 
 
