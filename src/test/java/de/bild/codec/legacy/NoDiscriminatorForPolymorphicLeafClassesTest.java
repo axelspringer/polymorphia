@@ -62,7 +62,9 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
 
     interface IdVersionTuple<T> {
         T getId();
+
         Integer getVersion();
+
         default Bson toFilter() {
             return null;
         }
@@ -71,8 +73,10 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
     public abstract static class BaseResult<T> implements IdVersionTuple<T> {
         Integer version;
         Set<ObjectId> references;
+
         private BaseResult() {
         }
+
         @Override
         public Integer getVersion() {
             return version;
@@ -93,8 +97,7 @@ public class NoDiscriminatorForPolymorphicLeafClassesTest {
     }
 
 
-
-        public static class UrlResult extends BaseResult<String> {
+    public static class UrlResult extends BaseResult<String> {
         String url;
 
         private UrlResult() {

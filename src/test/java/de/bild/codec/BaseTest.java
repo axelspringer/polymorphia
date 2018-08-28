@@ -92,11 +92,11 @@ public class BaseTest {
         @Bean()
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
-                    MongoClient.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder().register(BaseTest.class).build()
-                    )
+                    ),
+                    MongoClient.getDefaultCodecRegistry()
             );
         }
     }

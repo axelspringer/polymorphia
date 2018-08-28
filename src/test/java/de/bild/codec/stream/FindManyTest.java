@@ -35,13 +35,13 @@ public class FindManyTest {
         @Bean()
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
-                    MongoClient.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register(Pojo.class.getPackage().getName())
                                     .build()
-                    )
+                    ),
+                    MongoClient.getDefaultCodecRegistry()
             );
         }
     }

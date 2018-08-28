@@ -98,10 +98,6 @@ public class PojoContext {
             // side note: this PojoContext is chained within this codecRegistry and gets asked as well!!
             if (type instanceof Class) {
                 codec = codecRegistry.get(ReflectionHelper.extractRawClass(type));
-                // replace certain codecs as they do harm
-                if (codec instanceof IterableCodec) {
-                    codec = pojoContext.getCodec(type, this);
-                }
             } else {
                 // if type is any other type than {@link Class}, there is no reason to ask codecRegistry
                 // directly as anyway the class would need to be extracted from the type and we would loose type information
@@ -182,8 +178,8 @@ public class PojoContext {
         if (!codecMap.containsKey(type)) {
             Codec<T> standardCodec = typeCodecRegistry.getCodec(type);
             if (standardCodec instanceof PolymorphicCodec) {
-                return (PolymorphicCodec)standardCodec; // lovely, user provided a PolymorphicCodec
-            } else if (!(standardCodec instanceof TypeCodec)){
+                return (PolymorphicCodec) standardCodec; // lovely, user provided a PolymorphicCodec
+            } else if (!(standardCodec instanceof TypeCodec)) {
                 return new PolymorphicCodecWrapper<>(standardCodec);
             }
         }
@@ -251,7 +247,6 @@ public class PojoContext {
     }
 
 
-
     /**
      * Will try to find an appropriate codec for the given type.
      *
@@ -279,7 +274,7 @@ public class PojoContext {
         if (rawClass != null && List.class.isAssignableFrom(rawClass)) {
             // List ?
             Type listInterface = ReflectionHelper.findInterface(type, List.class);
-            if (listInterface instanceof ParameterizedType) {
+            if (listInterface instanceof ParameterizedType && !TypeUtils.containsTypeVariables(listInterface)) {
                 ParameterizedType parameterizedType = (ParameterizedType) listInterface;
                 try {
                     codec = new ListTypeCodec(rawClass, parameterizedType.getActualTypeArguments()[0], typeCodecRegistry);
@@ -292,7 +287,7 @@ public class PojoContext {
         } else if (rawClass != null && Set.class.isAssignableFrom(rawClass)) {
             // Set ?
             Type setInterface = ReflectionHelper.findInterface(type, Set.class);
-            if (setInterface instanceof ParameterizedType) {
+            if (setInterface instanceof ParameterizedType && !TypeUtils.containsTypeVariables(setInterface)) {
                 ParameterizedType parameterizedType = (ParameterizedType) setInterface;
                 try {
                     codec = new SetTypeCodec(rawClass, parameterizedType.getActualTypeArguments()[0], typeCodecRegistry);
@@ -302,15 +297,14 @@ public class PojoContext {
                     LOGGER.debug("Can't create advanced (generic set) codec for {}. Fall back to mongo db driver defaults.", parameterizedType, cce.getMessage());
                 }
             }
-        }
-        else if (Document.class.isAssignableFrom(rawClass)) {
+        } else if (Document.class.isAssignableFrom(rawClass)) {
             // if Document.class let mongo java driver handle this class directly
             codec = null;
         } else if (rawClass != null && Map.class.isAssignableFrom(rawClass)) {
             // Map ?
-            Type setInterface = ReflectionHelper.findInterface(type, Map.class);
-            if (setInterface instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) setInterface;
+            Type mapInterface = ReflectionHelper.findInterface(type, Map.class);
+            if (mapInterface instanceof ParameterizedType && !TypeUtils.containsTypeVariables(mapInterface)) {
+                ParameterizedType parameterizedType = (ParameterizedType) mapInterface;
                 Type keyType = parameterizedType.getActualTypeArguments()[0];
                 Type valueType = parameterizedType.getActualTypeArguments()[1];
                 try {
@@ -332,7 +326,7 @@ public class PojoContext {
             Set<Type> validTypesForType = typesModel.getAssignableTypesWithinClassHierarchy(type);
 
             if (validTypesForType == null || validTypesForType.isEmpty()) {
-                LOGGER.debug("Could not find concrete implementation for type {}. Maybe another codec is able to handle te class?!", type);
+                LOGGER.debug("Could not find codec for type {}. Maybe another codec or codec provider is able to handle te class?!", type);
                 return null;
             } else if (validTypesForType.size() > 1 || isPolymorphic(type, validTypesForType.iterator().next())) {
                 LOGGER.debug("Creating polymorphic codec for type {} with valid types {}", type, validTypesForType);
@@ -348,7 +342,7 @@ public class PojoContext {
 
 
     /**
-     * @param type to be checked for polymorphic structure
+     * @param type            to be checked for polymorphic structure
      * @param singleValidType
      * @return true, if type represents a polymorphic type structure
      */

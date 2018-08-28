@@ -12,8 +12,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 public class ReflectionHelperTest {
 
@@ -32,6 +31,9 @@ public class ReflectionHelperTest {
     static class ListOfDates extends ArrayList<Date> {
     }
 
+    static class NonGenericList extends ArrayList {
+    }
+
     static class SomeSpecialMap<K, V> extends HashMap<K, V> implements Map<K, V> {
     }
 
@@ -41,14 +43,21 @@ public class ReflectionHelperTest {
     static class SomeSpecialMapWithArgumentAndBound<V extends Date> extends HashMap<String, V> implements Map<String, V> {
     }
 
+    static class MissingTypeArgumentMap<E> extends HashMap<E, String> {
+    }
+
     @Test
     public void findInterfaceTest() throws Exception {
+        assertEquals(TypeUtils.parameterize(List.class, ArrayList.class.getTypeParameters()[0]), ReflectionHelper.findInterface(NonGenericList.class, List.class));
         assertEquals(TypeUtils.parameterize(List.class, Date.class), ReflectionHelper.findInterface(ListOfDates.class, List.class));
         assertEquals(TypeUtils.parameterize(List.class, ExtendedValueClass.class), ReflectionHelper.findInterface(SomeSpecializedList.class, List.class));
         //maps
-        assertEquals(TypeUtils.parameterize(Map.class, Object.class, Object.class), ReflectionHelper.findInterface(SomeSpecialMap.class, Map.class));
-        assertEquals(TypeUtils.parameterize(Map.class, String.class, Date.class), ReflectionHelper.findInterface(SomeSpecialMapWithBounds.class, Map.class));
-        assertEquals(TypeUtils.parameterize(Map.class, String.class, Date.class), ReflectionHelper.findInterface(SomeSpecialMapWithArgumentAndBound.class, Map.class));
+        Type anInterface = ReflectionHelper.findInterface(SomeSpecialMap.class, Map.class);
+        assertTrue(TypeUtils.containsTypeVariables(anInterface));
+        assertEquals(ReflectionHelper.extractRawClass(anInterface), Map.class);
+        assertEquals(TypeUtils.parameterize(Map.class, SomeSpecialMapWithBounds.class.getTypeParameters()), ReflectionHelper.findInterface(SomeSpecialMapWithBounds.class, Map.class));
+        assertEquals(TypeUtils.parameterize(Map.class, String.class, SomeSpecialMapWithArgumentAndBound.class.getTypeParameters()[0]), ReflectionHelper.findInterface(SomeSpecialMapWithArgumentAndBound.class, Map.class));
+
     }
 
 

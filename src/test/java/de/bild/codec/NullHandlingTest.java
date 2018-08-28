@@ -78,6 +78,12 @@ public class NullHandlingTest {
         String aString;
 
         @EncodeNulls(false)
+        List nonSpecializedList = Arrays.asList("www", "mobile");
+
+        @EncodeNulls(false)
+        List nonSpecializedListNull = null;
+
+        @EncodeNulls(false)
         List<PojoProperty> encodeNullsFalse;
 
         @EncodeNulls(true)
@@ -120,6 +126,7 @@ public class NullHandlingTest {
 
         JSONAssert.assertEquals("{\n" +
                 "  \"encodeNullsTrue\" : null,\n" +
+                "  \"nonSpecializedList\" : [\"www\", \"mobile\"],\n" +
                 "  \"encodeNullHandlingStrategy_CODEC\" : [],\n" +
                 "  \"encodeNullsShouldDecodeToNull\" : null\n" +
                 "}", stringWriter.toString(), true);

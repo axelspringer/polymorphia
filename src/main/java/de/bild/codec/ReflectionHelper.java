@@ -130,15 +130,12 @@ public abstract class ReflectionHelper {
                     .withLowerBounds(inferRealTypes(wildcardType.getLowerBounds(), realTypeMap))
                     .withUpperBounds(inferRealTypes(wildcardType.getUpperBounds(), realTypeMap)).build();
         } else if (type instanceof TypeVariable) {
-            if (realTypeMap == null) {
-                return ((TypeVariable) type).getBounds()[0];
+            if (realTypeMap != null) {
+                Type typeFoundInMap = realTypeMap.get(type.getTypeName());
+                if (typeFoundInMap != null) {
+                    return typeFoundInMap;
+                }
             }
-
-            Type typeFoundInMap = realTypeMap.get(type.getTypeName());
-            if (typeFoundInMap != null) {
-                return typeFoundInMap;
-            }
-
             return type;
         }
         return type;
@@ -274,6 +271,9 @@ public abstract class ReflectionHelper {
         Class rawClass = (Class) type.getRawType();
 
         if (rawClass == interfaceToFind) {
+            if (realTypeMap == null) {
+                return type;
+            }
             return inferRealType(type, realTypeMap);
         } else {
             Type[] actualTypeArguments = type.getActualTypeArguments();

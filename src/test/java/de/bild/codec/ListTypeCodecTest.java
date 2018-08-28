@@ -35,11 +35,11 @@ public class ListTypeCodecTest {
         @Bean()
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
-                    MongoClient.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder().register(ListTypeCodecTest.class).build()
-                    )
+                    ),
+                    MongoClient.getDefaultCodecRegistry()
             );
         }
     }
