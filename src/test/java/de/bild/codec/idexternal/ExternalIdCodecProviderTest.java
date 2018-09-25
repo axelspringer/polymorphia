@@ -17,6 +17,7 @@ import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecProvider;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.types.ObjectId;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,15 +35,12 @@ import java.util.Random;
 @EnableAutoConfiguration
 @ComponentScan(basePackages = "de.bild")
 public class ExternalIdCodecProviderTest {
-    private static final Random RANDOM = new Random();
-
     static class Config {
         @Bean()
         public static CodecRegistry getCodecRegistry() {
             return CodecRegistries.fromRegistries(
+                    CodecRegistries.fromCodecs(new CustomIdCodec()),
                     CodecRegistries.fromProviders(
-                            new EnumCodecProvider(),
-                            new CustomIdCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register(Pojo.class.getPackage().getName())
                                     .ignoreTypesAnnotatedWith(IgnoreAnnotation.class)
@@ -53,16 +51,6 @@ public class ExternalIdCodecProviderTest {
     }
 
 
-    @SuppressWarnings("unchecked")
-    public static class CustomIdCodecProvider implements CodecProvider {
-        @Override
-        public <T> Codec<T> get(Class<T> clazz, CodecRegistry codecRegistry) {
-            if (CustomId.class.isAssignableFrom(clazz)) {
-                return (Codec<T>)new CustomIdCodec();
-            }
-            return null;
-        }
-    }
 
     static class CustomIdCodec implements Codec<CustomId> {
         @Override
@@ -81,25 +69,12 @@ public class ExternalIdCodecProviderTest {
         }
     }
 
-    /**
-     * using WrongCustomIdGenerator generates a wrong customId and therefore generates an exception
-     * use at {@link Pojo#id} -  @Id(collectible = true, value = ExternalIdCodecProviderTest.WrongCustomIdGenerator.class)
-     */
-    public static class WrongCustomIdGenerator implements IdGenerator<Object> {
-        @Override
-        public Object generate() {
-            return "SomeRandomWrongCustomId";
-        }
-    }
-
     public static class CustomIdGenerator implements IdGenerator<CustomId> {
         @Override
         public CustomId generate() {
-            return CustomId.builder().aStringProperty("IdString: " + RANDOM.nextInt()).build();
+            return CustomId.builder().aStringProperty(new ObjectId().toString()).build();
         }
     }
-
-
 
 
     @Autowired
