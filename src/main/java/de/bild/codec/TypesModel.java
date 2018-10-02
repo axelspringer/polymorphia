@@ -87,7 +87,7 @@ public class TypesModel {
      *
      * @return an indexer or throws {@link IllegalStateException}
      */
-    private ClassResolver getClassResolver() {
+    private PredefinedClassResolver getClassResolver() {
         // now depending on library, index packages
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         try {
