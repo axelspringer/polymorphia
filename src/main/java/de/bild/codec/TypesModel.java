@@ -152,6 +152,9 @@ public class TypesModel {
     }
 
     private ClassHierarchyNode addClassToHierarchy(Class<?> classToBeAdded, Map<Class<?>, ClassHierarchyNode> clazzHierarchy) {
+        if (classToBeAdded == null) {
+            return null;
+        }
         ClassHierarchyNode classHierarchyNode = clazzHierarchy.get(classToBeAdded);
         if (classHierarchyNode == null && allClasses.contains(classToBeAdded)) {
             classHierarchyNode = new ClassHierarchyNode(classToBeAdded);
