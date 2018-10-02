@@ -1,6 +1,7 @@
 package de.bild.codec;
 
 import com.mongodb.MongoClient;
+import lombok.*;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
@@ -67,6 +68,7 @@ public class BaseTest {
     static final Double[] DOUBLES = {-0.0000001d, null, -13131.3d, 4e22, 222d};
 
     static final Map<String, Integer>[][] MAPS_ARRAY;
+    static final Map<ComplexKey, ComplexValue> COMPLEX_MAP;
     static final SortedMap<String, Integer>[] SORTEDMAPS_ARRAY;
 
     static {
@@ -84,9 +86,34 @@ public class BaseTest {
         SORTEDMAPS_ARRAY[0].put("zzz", null);
         SORTEDMAPS_ARRAY[0].put("aaa", 1);
 
-
+        COMPLEX_MAP = new HashMap<>();
+        COMPLEX_MAP.put(ComplexKey.builder().version(1).id("42:id").build(), ComplexValue.builder().message("Hello").build());
+        COMPLEX_MAP.put(ComplexKey.builder().version(1).id("3:id").build(), ComplexValue.builder().message("oop").build());
+        COMPLEX_MAP.put(ComplexKey.builder().version(2).id("42:id").build(), ComplexValue.builder().message("Hello version 2").build());
+        COMPLEX_MAP.put(null, null);
+        COMPLEX_MAP.put(ComplexKey.builder().version(3).id("42:id").build(), null);
     }
 
+    @EqualsAndHashCode
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Builder
+    @AllArgsConstructor
+    static class ComplexKey {
+        int version;
+        String id;
+    }
+
+    @EqualsAndHashCode
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Builder
+    @AllArgsConstructor
+    static class ComplexValue {
+        String message;
+    }
 
     static class Config {
         @Bean()
@@ -141,6 +168,7 @@ public class BaseTest {
         Double[] doubles;
         Map<String, Integer>[][] mapsArray;
         SortedMap<String, Integer>[] sortedMapArray;
+        Map<ComplexKey, ComplexValue> complexValueMap;
 
         @Override
         public boolean equals(Object o) {
@@ -191,7 +219,8 @@ public class BaseTest {
             if (!Arrays.equals(doubles, basePojo.doubles)) return false;
             if (!Arrays.deepEquals(mapsArray, basePojo.mapsArray)) return false;
             // Probably incorrect - comparing Object[] arrays with Arrays.equals
-            return Arrays.equals(sortedMapArray, basePojo.sortedMapArray);
+            if (!Arrays.equals(sortedMapArray, basePojo.sortedMapArray)) return false;
+            return complexValueMap != null ? complexValueMap.equals(basePojo.complexValueMap) : basePojo.complexValueMap == null;
         }
 
         @Override
@@ -232,6 +261,7 @@ public class BaseTest {
             result = 31 * result + Arrays.hashCode(doubles);
             result = 31 * result + Arrays.deepHashCode(mapsArray);
             result = 31 * result + Arrays.hashCode(sortedMapArray);
+            result = 31 * result + (complexValueMap != null ? complexValueMap.hashCode() : 0);
             return result;
         }
     }
@@ -299,6 +329,7 @@ public class BaseTest {
         basePojo.doubles = DOUBLES;
         basePojo.mapsArray = MAPS_ARRAY;
         basePojo.sortedMapArray = SORTEDMAPS_ARRAY;
+        basePojo.complexValueMap = COMPLEX_MAP;
 
         Codec<BasePojo> primitivePojoCodec = codecRegistry.get(BasePojo.class);
 
