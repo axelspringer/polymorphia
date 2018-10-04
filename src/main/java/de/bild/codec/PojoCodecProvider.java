@@ -261,11 +261,7 @@ public class PojoCodecProvider implements CodecProvider {
         }
 
         public PojoCodecProvider build() {
-            CodecConfiguration codecConfiguration = CodecConfiguration.builder()
-                    .decodeUndefinedHandlingStrategy(decodeUndefinedHandlingStrategy)
-                    .encodeNullHandlingStrategy(encodeNullHandlingStrategy)
-                    .encodeNulls(encodeNulls)
-                    .build();
+            CodecConfiguration codecConfiguration = new CodecConfiguration(encodeNulls, encodeNullHandlingStrategy, decodeUndefinedHandlingStrategy);
             return new PojoCodecProvider(classes, packages, ignoreAnnotations, ignoreTypesMatchingClassNamePredicates, ignoreClasses, typeCodecProviders, codecResolvers, codecConfiguration, classResolver);
         }
     }

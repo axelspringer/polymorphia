@@ -6,7 +6,7 @@
 
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>2.3.5</version>
+    <version>2.4.0</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
 
@@ -39,15 +39,15 @@
 
     <properties>
         <!-- Java Build-Setup -->
-        <java.version>1.8</java.version>
+        <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.source>${java.version}</maven.compiler.source>
 
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <mongo-java-driver.version>3.6.1</mongo-java-driver.version>
-        <slf4j.version>1.7.21</slf4j.version>
-        <guava.version>21.0</guava.version>
+        <slf4j.version>1.7.25</slf4j.version>
+        <de.flapdoodle.embed.mongo.version>2.1.1</de.flapdoodle.embed.mongo.version>
     </properties>
 
     <dependencyManagement>
@@ -56,7 +56,7 @@
                 <!-- Import dependency management from Spring Boot for testing purposes-->
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
-                <version>1.5.6.RELEASE</version>
+                <version>2.0.5.RELEASE</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -69,11 +69,6 @@
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
-        </dependency>
         <!-- DB setup -->
         <dependency>
             <groupId>org.mongodb</groupId>
@@ -83,7 +78,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.6</version>
+            <version>3.8.1</version>
         </dependency>
         <!-- spring will be used for class scanning if present in class path-->
         <dependency>
@@ -103,22 +98,13 @@
         <!-- testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>de.flapdoodle.embed</groupId>
             <artifactId>de.flapdoodle.embed.mongo</artifactId>
+            <version>${de.flapdoodle.embed.mongo.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -179,6 +165,15 @@
     </profiles>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>3.5.0.1254</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
