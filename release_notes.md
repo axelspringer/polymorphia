@@ -1,5 +1,8 @@
 Release Notes
 =======
+## 2.4.0
+* ensure compatibility with JDK 11
+
 ## 2.3.5
 * allow for non generic List, Map, Set within Pojos
 * filter for specific type within mongo collection: return null, if super class hierarchy can't be determined

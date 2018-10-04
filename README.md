@@ -2,7 +2,8 @@
 
 You can use this codec to encode plain old java objects into a mongo database and to decode those back again into POJOs.
 
-## Main features 
+## Main features
+ * compatible with JDK 11 (compiled with JDK 8) 
  * minimal configuration - but configurable when needed
  * support for polymorphic class hierarchies
  * support for generic types
@@ -25,7 +26,7 @@ Release notes are available [release_notes.md](release_notes.md).
 <dependency>
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>2.3.5</version>
+    <version>2.4.0</version>
 </dependency>
 ```
 
