@@ -1,6 +1,7 @@
 ## POJO (Plain old java objects) Codec for mongo db
 
-You can use this codec to encode plain old java objects into a mongo database and to decode those back again into POJOs.
+Polymorphia is an easy to use object document mapper for the JVM. It transparently maps your POJOs (Java entities, domain objects) to MongoDB BSON (eventually to MongoDB documents). 
+You can use this codec to encode plain old java objects into a Mongo database and to decode those back again into POJOs with minimal configuration.
 
 ## Main features
  * compatible with JDK 11 (compiled with JDK 8) 
@@ -10,8 +11,9 @@ You can use this codec to encode plain old java objects into a mongo database an
  * fine grained control over discriminator keys and values (needed to morph into the correct POJO while decoding)
  * fast
  * support for primitives and their object counterparts, sets, lists, maps (Map<String, T> as well as Map<KeyType,ValueType>) multi dimensional arrays, enums
- * allows for easy application [@Id(collectible = true)](src/main/java/de/bild/codec/annotations/Id.java) generation [@see CollectibleCodec](org.bson.codecs.CollectibleCodec)
+ * allows for easy **application** [@Id(collectible = true)](src/main/java/de/bild/codec/annotations/Id.java) generation [@see CollectibleCodec](org.bson.codecs.CollectibleCodec)
    * example: [IdTest](src/test/java/de/bild/codec/id/IdTest.java)
+   * set **collectible = false** to let MongoDB generate an ObjectId
  * provides fine grained control over restructuring data written to mongo (and reading from mongo) 
  * partial POJO codec [SpecialFieldsMapCodec](src/main/java/de/bild/codec/SpecialFieldsMapCodec.java)
  * life cycle hook support (pre safe, post load)
