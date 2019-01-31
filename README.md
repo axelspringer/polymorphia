@@ -28,7 +28,7 @@ Release notes are available [release_notes.md](release_notes.md).
 <dependency>
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>2.4.0</version>
+    <version>2.5.0</version>
 </dependency>
 ```
 
@@ -310,6 +310,10 @@ PojoCodecProvider.builder()
     }
 ```
 
+## Resilience
+If you perform a findMany() operation, it may happen, that some items in the resulting result set may incur exceptions due to mismatching data types e.g.    
+With [@DecodingPojoFailureStrategy](src/test/java/de/bild/codec/annotations/DecodingPojoFailureStrategy.java) and [@DecodingFieldFailureStrategy](src/main/java/de/bild/codec/annotations/DecodingFieldFailureStrategy.java) 
+it is possible to control exceptional states while decoding entities.
 
 ## Build
 

@@ -9,7 +9,7 @@ import java.util.Set;
  * @param <T>
  */
 public interface ReflectionCodec<T> extends PolymorphicCodec<T> {
-    Map<String, MappedField> getPersistenceFields();
+    Map<String, MappedField<T, Object>> getPersistenceFields();
 
     MappedField getMappedField(String mappedFieldName);
 

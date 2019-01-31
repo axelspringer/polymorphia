@@ -42,6 +42,7 @@ public abstract class AbstractTypeCodec<T> implements TypeCodec<T> {
         throw new IllegalArgumentException("Type is not supported." + type);
     }
 
+    @SuppressWarnings("unchecked")
     protected Constructor<T> getDefaultConstructor(Class<T> clazz) {
         //resolve constructor
         try {

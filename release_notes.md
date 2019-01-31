@@ -1,5 +1,9 @@
 Release Notes
 =======
+
+## 2.5.0
+* add support to react on exceptional states (DecodingPojoFailureStrategy and DecodingFieldFailureStrategy)
+
 ## 2.4.0
 * ensure compatibility with JDK 11
 
