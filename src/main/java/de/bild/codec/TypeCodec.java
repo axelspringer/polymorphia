@@ -1,6 +1,6 @@
 package de.bild.codec;
 
-import org.bson.BsonDocument;
+import de.bild.codec.annotations.DecodingPojoFailureStrategy;
 import org.bson.BsonNull;
 import org.bson.BsonValue;
 import org.bson.codecs.Codec;
@@ -44,5 +44,9 @@ public interface TypeCodec<T> extends Codec<T> {
 
     default Bson getTypeFilter() {
         return null;
+    }
+
+    default DecodingPojoFailureStrategy.Strategy getDecodingPojoFailureStrategy() {
+        return DecodingPojoFailureStrategy.Strategy.RETHROW_EXCEPTION;
     }
 }

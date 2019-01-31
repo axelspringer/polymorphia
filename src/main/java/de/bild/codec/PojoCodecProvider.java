@@ -2,8 +2,9 @@ package de.bild.codec;
 
 
 import de.bild.codec.annotations.DecodeUndefinedHandlingStrategy;
+import de.bild.codec.annotations.DecodingFieldFailureStrategy;
+import de.bild.codec.annotations.DecodingPojoFailureStrategy;
 import de.bild.codec.annotations.EncodeNullHandlingStrategy;
-import org.bson.BsonDocument;
 import org.bson.BsonReader;
 import org.bson.BsonValue;
 import org.bson.BsonWriter;
@@ -164,6 +165,9 @@ public class PojoCodecProvider implements CodecProvider {
         private List<TypeCodecProvider> typeCodecProviders = new ArrayList<>();
         private EncodeNullHandlingStrategy.Strategy encodeNullHandlingStrategy = EncodeNullHandlingStrategy.Strategy.CODEC;
         private DecodeUndefinedHandlingStrategy.Strategy decodeUndefinedHandlingStrategy = DecodeUndefinedHandlingStrategy.Strategy.KEEP_POJO_DEFAULT;
+        private DecodingFieldFailureStrategy.Strategy decodingFieldFailureStrategy = DecodingFieldFailureStrategy.Strategy.RETHROW_EXCEPTION;
+        private DecodingPojoFailureStrategy.Strategy decodingPojoFailureStrategy = DecodingPojoFailureStrategy.Strategy.RETHROW_EXCEPTION;
+
         private boolean encodeNulls = false;
 
         public Builder setPackages(Set<String> packages) {
@@ -229,6 +233,20 @@ public class PojoCodecProvider implements CodecProvider {
             return this;
         }
 
+        public Builder decodingPojoFailureStrategy(DecodingPojoFailureStrategy.Strategy decodingPojoFailureStrategy) {
+            if (decodingPojoFailureStrategy != null) {
+                this.decodingPojoFailureStrategy = decodingPojoFailureStrategy;
+            }
+            return this;
+        }
+
+        public Builder decodingFieldFailureStrategy(DecodingFieldFailureStrategy.Strategy decodingFieldFailureStrategy) {
+            if (decodingFieldFailureStrategy != null) {
+                this.decodingFieldFailureStrategy = decodingFieldFailureStrategy;
+            }
+            return this;
+        }
+
         public Builder encodeNullHandlingStrategy(EncodeNullHandlingStrategy.Strategy encodeNullHandlingStrategy) {
             if (encodeNullHandlingStrategy != null) {
                 this.encodeNullHandlingStrategy = encodeNullHandlingStrategy;
@@ -261,7 +279,7 @@ public class PojoCodecProvider implements CodecProvider {
         }
 
         public PojoCodecProvider build() {
-            CodecConfiguration codecConfiguration = new CodecConfiguration(encodeNulls, encodeNullHandlingStrategy, decodeUndefinedHandlingStrategy);
+            CodecConfiguration codecConfiguration = new CodecConfiguration(encodeNulls, encodeNullHandlingStrategy, decodeUndefinedHandlingStrategy, decodingFieldFailureStrategy, decodingPojoFailureStrategy);
             return new PojoCodecProvider(classes, packages, ignoreAnnotations, ignoreTypesMatchingClassNamePredicates, ignoreClasses, typeCodecProviders, codecResolvers, codecConfiguration, classResolver);
         }
     }

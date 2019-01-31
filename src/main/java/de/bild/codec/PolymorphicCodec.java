@@ -44,39 +44,39 @@ public interface PolymorphicCodec<T> extends TypeCodec<T> {
 
     @Override
     default T decode(BsonReader reader, DecoderContext decoderContext) {
-        BsonReaderMark mark = null;
-        /*
-        TODO: need fix for https://jira.mongodb.org/browse/JAVA-2754 to implement backoff strategy.
-         */
-//        try {
-//            mark = reader.getMark();
+
             T newInstance;
             if (reader.getCurrentBsonType() == null || reader.getCurrentBsonType() == BsonType.DOCUMENT) {
-                reader.readStartDocument();
-                newInstance = decodeFields(reader, decoderContext, newInstance());
-                reader.readEndDocument();
+
+                BsonReaderMark mark = null;
+                try {
+                    mark = reader.getMark();
+                    reader.readStartDocument();
+                    newInstance = decodeFields(reader, decoderContext, newInstance());
+                    reader.readEndDocument();
+                } catch (Exception e) {
+                    LOGGER.error("Exception while reading pojo from reader. Skipping value.", e);
+                    switch (getDecodingPojoFailureStrategy()) {
+                        case RETHROW_EXCEPTION:
+                            throw e;
+                        case NULL:
+                        default: {
+                            if (mark != null) {
+                                mark.reset();
+                                reader.skipValue();
+                            }
+                        }
+                        return null;
+                    }
+                }
+
                 return newInstance;
             } else {
                 LOGGER.error("Expected to read document but reader is in state {}. Skipping value!", reader.getCurrentBsonType());
                 reader.skipValue();
                 return null;
             }
-//        } catch (Exception e) {
-//            LOGGER.error("Exception while reading pojo from reader. Skipping value.", e);
-//
-//            /**
-//             * in case the current pojo can be decoded due to errors, the codec will skip the current entity from the reader and returns null.
-//             * The user can then react accordingly.
-//             * TODO: Maybe it can be achieved to throw an unchecked exception with additional information on why the decoding failed.
-//             * TODO: The question is: how would the user handle this exception and proceed with the stream?
-//             */
-//
-//            if (mark != null) {
-//                mark.reset();
-//                reader.skipValue();
-//            }
-//        }
-//        return null;
+
     }
 
     @Override

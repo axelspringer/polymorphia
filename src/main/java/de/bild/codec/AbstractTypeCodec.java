@@ -25,6 +25,8 @@ public abstract class AbstractTypeCodec<T> implements TypeCodec<T> {
         defaultConstructor = getDefaultConstructor(encoderClass);
     }
 
+
+    @SuppressWarnings("unchecked")
     static <T> Class<T> extractClass(Type type) {
         if (type instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) type;

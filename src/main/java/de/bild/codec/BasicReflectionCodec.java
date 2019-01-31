@@ -1,9 +1,6 @@
 package de.bild.codec;
 
-import de.bild.codec.annotations.Id;
-import de.bild.codec.annotations.PostLoad;
-import de.bild.codec.annotations.PreSave;
-import de.bild.codec.annotations.Transient;
+import de.bild.codec.annotations.*;
 import org.apache.commons.lang3.reflect.TypeUtils;
 import org.bson.BsonReader;
 import org.bson.BsonType;
@@ -24,6 +21,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicReflectionCodec.class);
     MappedField<T, Object> idField;
     private static IdGenerator<ObjectId> DEFAULT_ID_GENERATOR = new ObjectIdGenerator();
+    final DecodingPojoFailureStrategy.Strategy decodingPojoFailureStrategy;
 
     /**
      * a list of the fields to map
@@ -90,6 +88,14 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
                 preSaveMethods.add(method);
             }
         }
+        DecodingPojoFailureStrategy decodingPojoFailureStrategy = encoderClass.getDeclaredAnnotation(DecodingPojoFailureStrategy.class);
+        this.decodingPojoFailureStrategy = decodingPojoFailureStrategy != null ? decodingPojoFailureStrategy.value() : codecConfiguration.getDecodingPojoFailureStrategy();
+
+    }
+
+    @Override
+    public DecodingPojoFailureStrategy.Strategy getDecodingPojoFailureStrategy() {
+        return decodingPojoFailureStrategy;
     }
 
     @Override

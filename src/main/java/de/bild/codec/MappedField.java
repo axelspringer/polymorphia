@@ -2,6 +2,7 @@ package de.bild.codec;
 
 import de.bild.codec.annotations.*;
 import org.bson.BsonReader;
+import org.bson.BsonReaderMark;
 import org.bson.BsonType;
 import org.bson.BsonWriter;
 import org.bson.codecs.Codec;
@@ -32,6 +33,7 @@ public class MappedField<T, F> {
         ANNOTATIONS_TO_BE_HANDLED.add(LockingVersion.class);
         ANNOTATIONS_TO_BE_HANDLED.add(EncodeNullHandlingStrategy.class);
         ANNOTATIONS_TO_BE_HANDLED.add(DecodeUndefinedHandlingStrategy.class);
+        ANNOTATIONS_TO_BE_HANDLED.add(DecodingFieldFailureStrategy.class);
         ANNOTATIONS_TO_BE_HANDLED.add(EncodeNulls.class);
     }
 
@@ -43,6 +45,7 @@ public class MappedField<T, F> {
     private PrimitiveType primitiveType;
 
     final FieldTypePair fieldTypePair;
+    final DecodingFieldFailureStrategy.Strategy decodingFieldFailureStrategy;
     final EncodeNullHandlingStrategy.Strategy encodeNullHandlingStrategy;
     final DecodeUndefinedHandlingStrategy.Strategy decodeUndefinedHandlingStrategy;
     final boolean encodeNulls;
@@ -95,6 +98,10 @@ public class MappedField<T, F> {
         /**
          * get configuration for field
          */
+
+        DecodingFieldFailureStrategy classDecodingFieldFailureStrategy = persistedClass.getDeclaredAnnotation(DecodingFieldFailureStrategy.class);
+        DecodingFieldFailureStrategy fieldDecodingFieldFailureStrategy = getAnnotation(DecodingFieldFailureStrategy.class);
+        this.decodingFieldFailureStrategy = (fieldDecodingFieldFailureStrategy != null) ? fieldDecodingFieldFailureStrategy.value() : (classDecodingFieldFailureStrategy != null) ? classDecodingFieldFailureStrategy.value() : codecConfiguration.getDecodingFieldFailureStrategy();
 
         EncodeNullHandlingStrategy classEncodeNullHandlingStrategy = persistedClass.getDeclaredAnnotation(EncodeNullHandlingStrategy.class);
         EncodeNullHandlingStrategy fieldEncodeNullHandlingStrategy = getAnnotation(EncodeNullHandlingStrategy.class);
@@ -253,21 +260,45 @@ public class MappedField<T, F> {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Decode field : {}({}) - codec : {}", field, fieldTypePair.getRealType(), field.getType().isPrimitive() ? primitiveType : codec);
         }
-        if (field.getType().isPrimitive()) {
-            if (reader.getCurrentBsonType() == BsonType.NULL || reader.getCurrentBsonType() == BsonType.UNDEFINED) {
-                reader.skipValue();
-            } else {
-                primitiveType.decode(reader, instance, decoderContext, this);
+
+        BsonReaderMark mark = null;
+        try {
+            mark = reader.getMark();
+            if (field.getType().isPrimitive()) {
+                if (reader.getCurrentBsonType() == BsonType.NULL || reader.getCurrentBsonType() == BsonType.UNDEFINED) {
+                    reader.skipValue();
+                } else {
+                    primitiveType.decode(reader, instance, decoderContext, this);
+                }
+            } else if (codec != null) {
+                if (BsonType.NULL.equals(reader.getCurrentBsonType())) {
+                    reader.readNull();
+                    setFieldValue(instance, null);
+                } else if (BsonType.UNDEFINED.equals(reader.getCurrentBsonType())) {
+                    reader.skipValue();
+                } else {
+                    F decoded = codec.decode(reader, decoderContext);
+                    setFieldValue(instance, decoded);
+                }
             }
-        } else if (codec != null) {
-            if (BsonType.NULL.equals(reader.getCurrentBsonType())) {
-                reader.readNull();
-                setFieldValue(instance, null);
-            } else if (BsonType.UNDEFINED.equals(reader.getCurrentBsonType())) {
-                reader.skipValue();
-            } else {
-                F decoded = codec.decode(reader, decoderContext);
-                setFieldValue(instance, decoded);
+        } catch (Exception e) {
+            LOGGER.error("Exception while reading field {} from reader.",this, e);
+            switch (decodingFieldFailureStrategy) {
+                case RETHROW_EXCEPTION:
+                    throw e;
+                case SET_TO_NULL:
+                    if (field.getType().isPrimitive()) {
+                        primitiveType.setToDefault(instance, decoderContext, this);
+                    } else {
+                        setFieldValue(instance, null);
+                    }
+                case SKIP:
+                default: {
+                    if (mark != null) {
+                        mark.reset();
+                        reader.skipValue();
+                    }
+                }
             }
         }
     }
@@ -325,6 +356,9 @@ public class MappedField<T, F> {
 
         <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException;
 
+        <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException;
+
+
         default <T> void encode(BsonWriter writer, T instance, EncoderContext encoderContext, MappedField mappedField) {
             try {
                 writer.writeName(mappedField.getMappedFieldName());
@@ -339,6 +373,14 @@ public class MappedField<T, F> {
                 if (checkBsonTypeAndSkipOnMisMatch(reader)) {
                     decodeInternal(reader, instance, mappedField.getField());
                 }
+            } catch (IllegalAccessException e) {
+                LOGGER.warn("Could not decode mappedField.", mappedField, e);
+            }
+        }
+
+        default <T> void setToDefault(T instance, DecoderContext decoderContext, MappedField mappedField) {
+            try {
+                setToDefaultInternal(instance, mappedField.getField());
             } catch (IllegalAccessException e) {
                 LOGGER.warn("Could not decode mappedField.", mappedField, e);
             }
@@ -360,6 +402,8 @@ public class MappedField<T, F> {
 
     private enum PrimitiveType implements DefaultPrimitiveType {
         BYTE(byte.class, BsonType.INT32) {
+            byte defaultByte;
+
             @Override
             public <T> void decodeInternal(BsonReader reader, T instance, Field field) throws IllegalAccessException {
                 field.setByte(instance, (byte) reader.readInt32());
@@ -369,8 +413,14 @@ public class MappedField<T, F> {
             public <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException {
                 writer.writeInt32(field.getByte(instance));
             }
+
+            @Override
+            public <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException {
+                field.setByte(instance, defaultByte);
+            }
         },
         BOOLEAN(boolean.class, BsonType.BOOLEAN) {
+            boolean defaultBoolean;
             @Override
             public <T> void decodeInternal(BsonReader reader, T instance, Field field) throws IllegalAccessException {
                 field.setBoolean(instance, reader.readBoolean());
@@ -380,8 +430,14 @@ public class MappedField<T, F> {
             public <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException {
                 writer.writeBoolean(field.getBoolean(instance));
             }
+
+            @Override
+            public <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException {
+                field.setBoolean(instance, defaultBoolean);
+            }
         },
         CHARACTER(char.class, BsonType.INT32) {
+            char defaultChar;
             @Override
             public <T> void decodeInternal(BsonReader reader, T instance, Field field) throws IllegalAccessException {
                 field.setChar(instance, (char) reader.readInt32());
@@ -391,8 +447,14 @@ public class MappedField<T, F> {
             public <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException {
                 writer.writeInt32(field.getChar(instance));
             }
+
+            @Override
+            public <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException {
+                field.setChar(instance, defaultChar);
+            }
         },
         FLOAT(float.class, BsonType.DOUBLE) {
+            float defaultFloat;
             @Override
             public <T> void decodeInternal(BsonReader reader, T instance, Field field) throws IllegalAccessException {
                 field.setFloat(instance, (float) reader.readDouble());
@@ -402,8 +464,14 @@ public class MappedField<T, F> {
             public <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException {
                 writer.writeDouble(field.getFloat(instance));
             }
+
+            @Override
+            public <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException {
+                field.setFloat(instance, defaultFloat);
+            }
         },
         INTEGER(int.class, BsonType.INT32) {
+            int defaultInt;
             @Override
             public <T> void decodeInternal(BsonReader reader, T instance, Field field) throws IllegalAccessException {
                 field.setInt(instance, reader.readInt32());
@@ -413,8 +481,14 @@ public class MappedField<T, F> {
             public <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException {
                 writer.writeInt32(field.getInt(instance));
             }
+
+            @Override
+            public <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException {
+                field.setInt(instance, defaultInt);
+            }
         },
         LONG(long.class, BsonType.INT64) {
+            long defaultLong;
             @Override
             public <T> void decodeInternal(BsonReader reader, T instance, Field field) throws IllegalAccessException {
                 field.setLong(instance, reader.readInt64());
@@ -424,8 +498,14 @@ public class MappedField<T, F> {
             public <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException {
                 writer.writeInt64(field.getLong(instance));
             }
+
+            @Override
+            public <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException {
+                field.setLong(instance, defaultLong);
+            }
         },
         SHORT(short.class, BsonType.INT32) {
+            short defaultShort;
             @Override
             public <T> void decodeInternal(BsonReader reader, T instance, Field field) throws IllegalAccessException {
                 field.setShort(instance, (short) reader.readInt32());
@@ -435,8 +515,14 @@ public class MappedField<T, F> {
             public <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException {
                 writer.writeInt32(field.getShort(instance));
             }
+
+            @Override
+            public <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException {
+                field.setShort(instance, defaultShort);
+            }
         },
         DOUBLE(double.class, BsonType.DOUBLE) {
+            double defaultDouble;
             @Override
             public <T> void decodeInternal(BsonReader reader, T instance, Field field) throws IllegalAccessException {
                 field.setDouble(instance, reader.readDouble());
@@ -445,6 +531,11 @@ public class MappedField<T, F> {
             @Override
             public <T> void encodeInternal(BsonWriter writer, T instance, Field field) throws IllegalAccessException {
                 writer.writeDouble(field.getDouble(instance));
+            }
+
+            @Override
+            public <T> void setToDefaultInternal(T instance, Field field) throws IllegalAccessException {
+                field.setDouble(instance, defaultDouble);
             }
         };
         final Class<?> primitiveClass;

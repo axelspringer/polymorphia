@@ -5,13 +5,14 @@ import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import de.bild.codec.EnumCodecProvider;
 import de.bild.codec.PojoCodecProvider;
+import de.bild.codec.annotations.DecodingFieldFailureStrategy;
+import de.bild.codec.annotations.DecodingPojoFailureStrategy;
 import de.bild.codec.stream.model.Pojo;
 import org.bson.Document;
 import org.bson.codecs.Codec;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -22,6 +23,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = FindManyTest.class)
@@ -39,6 +43,8 @@ public class FindManyTest {
                             new EnumCodecProvider(),
                             PojoCodecProvider.builder()
                                     .register(Pojo.class.getPackage().getName())
+                                    .decodingFieldFailureStrategy(DecodingFieldFailureStrategy.Strategy.RETHROW_EXCEPTION)
+                                    .decodingPojoFailureStrategy(DecodingPojoFailureStrategy.Strategy.NULL)
                                     .build()
                     ),
                     MongoClient.getDefaultCodecRegistry()
@@ -61,7 +67,6 @@ public class FindManyTest {
      * The codec will return null values for non-readable pojos, so that the user can react on such a situation
      */
     @Test
-    @Ignore
     public void someTest() {
         Codec<Pojo> codec = codecRegistry.get(Pojo.class);
         MongoCollection<Document> collection = mongoClient.getDatabase("test").getCollection("pojos");
@@ -71,7 +76,12 @@ public class FindManyTest {
             pojoMongoCollection.insertOne(Pojo.builder().number(i).build());
         }
         // this will throw an exception during decoding, but this exception should be caught and null will be returned
-        collection.insertOne(new Document("number", "StringInsteadOfInteger"));
+        collection.insertOne(
+                new Document("number", 55)
+                        .append("integerList", new ArrayList<>())
+                        .append("pojoList", Arrays.asList(new Document("number", 24), new Document("number", "fail"))));
+
+
         for (int i = 0; i < 10; i++) {
             pojoMongoCollection.insertOne(Pojo.builder().number(i).build());
         }
