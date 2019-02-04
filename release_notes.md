@@ -1,8 +1,14 @@
 Release Notes
 =======
 
+## 2.6.0
+* documentation update
+* declare mongo-java-driver dependency as provided - so no need to exclude that dependency in projects
+* reverting some generic declaration changes made in version 2.5.0 in RefelctionCodec that may interfere with legacy code
+
 ## 2.5.0
 * add support to react on exceptional states (DecodingPojoFailureStrategy and DecodingFieldFailureStrategy)
+* needs mongo.java-driver version > 3.7.0
 
 ## 2.4.0
 * ensure compatibility with JDK 11

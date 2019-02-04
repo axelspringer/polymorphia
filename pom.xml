@@ -74,6 +74,8 @@
             <groupId>org.mongodb</groupId>
             <artifactId>mongo-java-driver</artifactId>
             <version>${mongo-java-driver.version}</version>
+            <!--make sure to include the mongo-java-driver in your project minimal version 3.7.0-->
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

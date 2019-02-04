@@ -26,7 +26,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
     /**
      * a list of the fields to map
      */
-    final Map<String, MappedField<T, Object>> persistenceFields = new LinkedHashMap<>();
+    final Map<String, MappedField> persistenceFields = new LinkedHashMap<>();
     final List<Method> postLoadMethods = new ArrayList<>();
     final List<Method> preSaveMethods = new ArrayList<>();
     IdGenerator idGenerator;
@@ -99,7 +99,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
     }
 
     @Override
-    public Map<String, MappedField<T, Object>> getPersistenceFields() {
+    public Map<String, MappedField> getPersistenceFields() {
         return persistenceFields;
     }
 
@@ -115,7 +115,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
 
         while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
             String fieldName = reader.readName();
-            MappedField<T, Object> mappedField = persistenceFields.get(fieldName);
+            MappedField mappedField = persistenceFields.get(fieldName);
             if (mappedField != null) {
                 fieldNames.remove(fieldName);
                 mappedField.decode(reader, instance, decoderContext);
@@ -146,7 +146,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
     @Override
     public void encodeFields(BsonWriter writer, T instance, EncoderContext encoderContext) {
         preEncode(instance);
-        for (MappedField<T, Object> persistenceField : persistenceFields.values()) {
+        for (MappedField persistenceField : persistenceFields.values()) {
             persistenceField.encode(writer, instance, encoderContext);
         }
     }

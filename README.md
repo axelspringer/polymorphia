@@ -5,10 +5,14 @@ You can use this codec to encode plain old java objects into a Mongo database an
 
 ## Main features
  * compatible with JDK 11 (compiled with JDK 8) 
- * minimal configuration - but configurable when needed
+ * minimal configuration, easy to use - but configurable when needed
+ * convention over configuration approach
+ * use standard mongo-java-driver features to store and retrieve entities from MongoDB (including async and synchronous support)
  * support for polymorphic class hierarchies
  * support for generic types
+ * works properly with any existing [Codec](org.bson.codecs.Codec) or [TypeCodec](src/main/java/de/bild/codec/TypeCodec.java) (if you need support for generic types e.g.)
  * fine grained control over discriminator keys and values (needed to morph into the correct POJO while decoding)
+ * allows for easy evolution of domain model (renaming of classes or evolution of non-polymorphic structures into polymorphic structures e.g.)
  * fast
  * support for primitives and their object counterparts, sets, lists, maps (Map<String, T> as well as Map<KeyType,ValueType>) multi dimensional arrays, enums
  * allows for easy **application** [@Id(collectible = true)](src/main/java/de/bild/codec/annotations/Id.java) generation [@see CollectibleCodec](org.bson.codecs.CollectibleCodec)
@@ -18,6 +22,8 @@ You can use this codec to encode plain old java objects into a Mongo database an
  * partial POJO codec [SpecialFieldsMapCodec](src/main/java/de/bild/codec/SpecialFieldsMapCodec.java)
  * life cycle hook support (pre safe, post load)
  * support mongo java driver > version 3.5
+ * resilient (control how to decode broken entities within your MongoDB)
+ * global and/or annotation based configuration for null handling while encoding / undefined handling while decoding
 
 
 ## Release Notes
@@ -31,13 +37,14 @@ Release notes are available [release_notes.md](release_notes.md).
     <version>2.5.0</version>
 </dependency>
 ```
+Make sure you include a suitable mongo-java-driver version in your project.
 
 ## Usage
 Note: There are plenty of code examples to be found in the tests.
 
-Attention: In order to scan packages you need to provide either [spring-core](https://github.com/spring-projects/spring-framework) library or [org.reflections.reflections](https://github.com/ronmamo/reflections) library in the class path.
-Alternatively you could register all your POJO classes one by one!
-When using Polymorphia > version 2.3.0 you can register your own [ClassResolver](src/main/java/de/bild/codec/ClassResolver.java)
+Attention: In order **to scan** packages for pojo domain model classes you need to provide either [spring-core](https://github.com/spring-projects/spring-framework) library or [org.reflections.reflections](https://github.com/ronmamo/reflections) library in the class path.
+**Alternatively you could register all your POJO classes one by one!**
+Or when using Polymorphia > version 2.3.0 you can register your own [ClassResolver](src/main/java/de/bild/codec/ClassResolver.java) to provide a list of your domain model classes.
 
 Instantiate the [PojoCodecProvider](src/main/java/de/bild/codec/PojoCodecProvider.java) and add it to the CodecRegistry.
 Example: [PolymorphicReflectionCodecTest](src/test/java/de/bild/codec/PolymorphicReflectionCodecTest.java)
@@ -57,7 +64,24 @@ Simple example @see example [PolymorphicCollectionTest](src/test/java/de/bild/co
         public class Square implements Shape  {
             int x;
         }
-                
+
+        /** Non-shapy things ... **/
+        static class Animal implements MyCollectionThing {
+            String name;
+        }
+        static class Mammal extends Animal{
+    
+        }
+        static class Cat extends Mammal {
+            int age;
+        }
+        static class Dog extends Mammal {
+            String color;
+        }
+        static class Tuna extends Fish {
+            int size;
+        }
+                        
         public static void main() {
             MongoCollection<MyCollectionThing> collection = database.getCollection("things").withDocumentClass(MyCollectionThing.class);
     
