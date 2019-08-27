@@ -2,6 +2,7 @@ Release Notes
 =======
 ## 2.7.0
 * introducing InstanceAwareIdGenerator to allow for instance aware id generation
+* add codec transcoding dynamically typed Object values
 
 ## 2.6.0
 * documentation update
