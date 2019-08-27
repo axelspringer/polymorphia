@@ -1,5 +1,7 @@
 Release Notes
 =======
+## 2.7.0
+* introducing InstanceAwareIdGenerator to allow for instance aware id generation
 
 ## 2.6.0
 * documentation update

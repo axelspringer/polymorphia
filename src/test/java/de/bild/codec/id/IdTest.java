@@ -62,4 +62,17 @@ public class IdTest {
     public void testMissingGeneratorClass() {
         Codec<EntityWithMissingGenerator> codec = codecRegistry.get(EntityWithMissingGenerator.class);
     }
+
+    @Test
+    public void testInstanceAwareIdGeneration() {
+        final MongoCollection<PojoWithInstanceAwareIdGeneration> collection = mongoClient.getDatabase(DB_NAME).getCollection("documents").withDocumentClass(PojoWithInstanceAwareIdGeneration.class);
+        PojoWithInstanceAwareIdGeneration pojo = new PojoWithInstanceAwareIdGeneration();
+        pojo.useMeForIdGeneration = 42;
+        collection.insertOne(pojo);
+        assertThat(pojo.id, is(new PojoWithInstanceAwareIdGeneration.SomeId(42, 42)));
+        PojoWithInstanceAwareIdGeneration foundPojo = collection.find(Filters.eq("_id", pojo.id)).first();
+        assertThat(foundPojo, is(not(nullValue())));
+        assertThat(foundPojo.id, equalTo(pojo.id));
+
+    }
 }

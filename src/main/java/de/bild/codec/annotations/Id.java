@@ -1,6 +1,6 @@
 package de.bild.codec.annotations;
 
-import de.bild.codec.IdGenerator;
+import de.bild.codec.InstanceAwareIdGenerator;
 import de.bild.codec.ObjectIdGenerator;
 
 import java.lang.annotation.*;
@@ -13,7 +13,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface Id {
-    Class<? extends IdGenerator> value() default DefaultIdGenerator.class;
+    Class<? extends InstanceAwareIdGenerator> value() default DefaultIdGenerator.class;
 
     boolean collectible() default false;
 

@@ -29,7 +29,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
     final Map<String, MappedField> persistenceFields = new LinkedHashMap<>();
     final List<Method> postLoadMethods = new ArrayList<>();
     final List<Method> preSaveMethods = new ArrayList<>();
-    IdGenerator idGenerator;
+    InstanceAwareIdGenerator idGenerator;
     boolean isCollectible;
 
     public BasicReflectionCodec(Type type, TypeCodecRegistry typeCodecRegistry, CodecConfiguration codecConfiguration) {
@@ -54,7 +54,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
                         isCollectible = idAnnotation.collectible();
 
                         if (isCollectible) {
-                            Class<? extends IdGenerator> idGeneratorClass = idAnnotation.value();
+                            Class<? extends InstanceAwareIdGenerator> idGeneratorClass = idAnnotation.value();
                             if (idGeneratorClass == Id.DefaultIdGenerator.class) {
                                 if (idField.getField().getType() != ObjectId.class) {
                                     LOGGER.error("The id field for pojo class {} is of type {} is not able to consume ObjectIds values from ObjectIdGenerator. Please define a proper ObjectIdGenerator along with annotation Id(value=Generator.class)", getEncoderClass(), idField.getFieldTypePair().getRealType());
@@ -63,7 +63,7 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
                                 idGenerator = DEFAULT_ID_GENERATOR;
                             } else {
                                 try {
-                                    Constructor<? extends IdGenerator> idGeneratorConstructor = idGeneratorClass.getDeclaredConstructor();
+                                    Constructor<? extends InstanceAwareIdGenerator> idGeneratorConstructor = idGeneratorClass.getDeclaredConstructor();
                                     idGeneratorConstructor.setAccessible(true);
                                     idGenerator = idGeneratorConstructor.newInstance();
                                 } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
@@ -175,7 +175,8 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
     @Override
     public T generateIdIfAbsentFromDocument(T document) {
         if (idGenerator != null && !documentHasId(document)) {
-            Object generatedId = idGenerator.generate();
+            Object generatedId = idGenerator.generate(document);
+
             try {
                 if (!idField.setFieldValue(document, generatedId)) {
                    LOGGER.error("Id {} for pojo {} could not be set. Please watch the logs.", generatedId, document);

@@ -1,12 +1,18 @@
 package de.bild.codec;
 
-import org.bson.BsonDocumentWrapper;
-import org.bson.BsonValue;
+/**
+ * IdGenerator that has no need to generate ids based on instance internals
+ */
+public interface IdGenerator<T> extends InstanceAwareIdGenerator<T, Object> {
 
-public interface IdGenerator<T> {
-    T generate();
-
-    default BsonValue asBsonValue(T id, TypeCodecRegistry typeCodecRegistry) {
-        return BsonDocumentWrapper.asBsonDocument(id, typeCodecRegistry.getRegistry());
+    @Override
+    default T generate(Object instance) {
+        return generate();
     }
+
+    /**
+     * Generate id without knowledge of the instance
+     * @return a new id
+     */
+    T generate();
 }
