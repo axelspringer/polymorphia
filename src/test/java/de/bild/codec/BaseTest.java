@@ -121,7 +121,8 @@ public class BaseTest {
             return CodecRegistries.fromRegistries(
                     CodecRegistries.fromProviders(
                             new EnumCodecProvider(),
-                            PojoCodecProvider.builder().register(BaseTest.class).build()
+                            PojoCodecProvider.builder().register(BaseTest.class).build(),
+                            new ObjectCodecProvider()
                     ),
                     MongoClient.getDefaultCodecRegistry()
             );
@@ -132,6 +133,7 @@ public class BaseTest {
     CodecRegistry codecRegistry;
 
     static class BasePojo {
+        Object someObject;
         String aString;
         float aPrimitiveFloat;
         int aPrimitiveInt;
@@ -176,6 +178,7 @@ public class BaseTest {
             if (!(o instanceof BasePojo)) return false;
 
             BasePojo basePojo = (BasePojo) o;
+            if (someObject != null ? !someObject.equals(basePojo.someObject) : basePojo.someObject != null) return false;
 
             if (Float.compare(basePojo.aPrimitiveFloat, aPrimitiveFloat) != 0) return false;
             if (aPrimitiveInt != basePojo.aPrimitiveInt) return false;
@@ -243,6 +246,7 @@ public class BaseTest {
             result = 31 * result + (aShort != null ? aShort.hashCode() : 0);
             result = 31 * result + (aByte != null ? aByte.hashCode() : 0);
             result = 31 * result + (aDouble != null ? aDouble.hashCode() : 0);
+            result = 31 * result + (someObject != null ? someObject.hashCode() : 0);
             result = 31 * result + Arrays.hashCode(strings);
             result = 31 * result + Arrays.hashCode(primitiveFloats);
             result = 31 * result + Arrays.hashCode(primitiveInts);
@@ -293,6 +297,7 @@ public class BaseTest {
     @Test
     public void basicTest() {
         BasePojo basePojo = new BasePojo();
+        basePojo.someObject = STRING;
         basePojo.aString = STRING;
         basePojo.aPrimitiveByte = PRIMITIVE_BYTE;
         basePojo.aPrimitiveChar = PRIMITIVE_CHAR;

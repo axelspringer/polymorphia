@@ -1,22 +1,12 @@
 package de.bild.codec;
 
-import static org.bson.assertions.Assertions.notNull;
+import org.bson.*;
+import org.bson.codecs.*;
+import org.bson.codecs.configuration.CodecRegistry;
 
 import java.util.UUID;
 
-import org.bson.BsonBinarySubType;
-import org.bson.BsonReader;
-import org.bson.BsonType;
-import org.bson.BsonWriter;
-import org.bson.Transformer;
-import org.bson.codecs.BsonTypeClassMap;
-import org.bson.codecs.BsonTypeCodecMap;
-import org.bson.codecs.Codec;
-import org.bson.codecs.Decoder;
-import org.bson.codecs.DecoderContext;
-import org.bson.codecs.EncoderContext;
-import org.bson.codecs.IterableCodec;
-import org.bson.codecs.configuration.CodecRegistry;
+import static org.bson.assertions.Assertions.notNull;
 
 
 /**
@@ -57,7 +47,7 @@ public class ObjectCodec<T> implements Codec<T> {
 			return;
 		}
 
-		final Codec<T> encoder = registry.get(value.getClass().asSubclass(clazz));
+		final Codec encoder = registry.get(value.getClass());
 		if (encoder == null) {
 			throw new UnsupportedOperationException(value.getClass().toString());
 		}
