@@ -34,7 +34,7 @@ Release notes are available [release_notes.md](release_notes.md).
 <dependency>
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>2.7.0</version>
+    <version>2.8.0</version>
 </dependency>
 ```
 Make sure you include a suitable mongo-java-driver version in your project.
@@ -127,7 +127,11 @@ public class Pojo extends BasePojo<Integer> {
     float[][][] floats; // multi dimensional float array
 }
 ```
-   
+#Setup
+
+Minimal working example can be found in the tests: See [Tutorial](src/test/java/de/bild/backend/polymorphia/tutorial/Tutorial.java)   
+Spring Boot Example Setup: See [MongoClientConfiguration](src/test/java/de/bild/backend/polymorphia/MongoClientConfiguration.java)
+
 ```java
     PojoCodecProvider.builder()
         .register("de.bild.codec.model") //adds all static classes of a package to the model
@@ -139,6 +143,7 @@ public class Pojo extends BasePojo<Integer> {
     MongoClient mongoClient = // either use spring auto configuration or create your own MongoClient instance with the above codecregistry
     
      // now simply write POJOs to the database or read from it
+    // many examples can be found in the tests
     
 ```
 In general your declared POJOs will need an empty default constructor, or a no-arg constructor (access level private will do). (Please feel free to add a mechanism to allow for control over entity instantiation)

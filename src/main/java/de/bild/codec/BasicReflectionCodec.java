@@ -83,8 +83,10 @@ public class BasicReflectionCodec<T> extends AbstractTypeCodec<T> implements Ref
         for (MethodTypePair methodTypePair : ReflectionHelper.getDeclaredAndInheritedMethods(encoderClass)) {
             Method method = methodTypePair.getMethod();
             if (method.isAnnotationPresent(PostLoad.class)) {
+                method.setAccessible(true);
                 postLoadMethods.add(method);
             } else if (method.isAnnotationPresent(PreSave.class)) {
+                method.setAccessible(true);
                 preSaveMethods.add(method);
             }
         }

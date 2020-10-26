@@ -1,20 +1,22 @@
 package de.bild.codec;
 
 import com.google.common.reflect.ClassPath;
+import de.bild.backend.polymorphia.IgnoreAnnotation;
 import de.bild.codec.annotations.IgnoreType;
-import de.bild.codec.classresolvertestmodel.AnEnum;
 import de.bild.codec.classresolvertestmodel.AnInterface;
 import org.apache.commons.lang3.reflect.TypeUtils;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
+
 
 public class TypesModelTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(TypesModelTest.class);
