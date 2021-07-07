@@ -8,6 +8,7 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +20,7 @@ import org.testcontainers.containers.MongoDBContainer;
 
 @SpringBootTest
 @Import(MongoClientConfiguration.class) // activate test specific (CodecRegistry) mongoClient configuration
+@EnableAutoConfiguration
 public abstract class AbstractTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractTest.class);
 
