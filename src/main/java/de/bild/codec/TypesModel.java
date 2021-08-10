@@ -12,6 +12,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.util.ClassUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
@@ -66,7 +67,9 @@ public class TypesModel {
 
         default Class<?> loadClass(Pattern classPattern, String resourceName, ClassLoader classLoader) {
             try {
-                String resourcePathWithDots = resourceName.replace('/', '.');
+                // Replaces "/" for normal URL resources (e.g. jar) and separatorChar for file resources
+                // separatorChar is used to avoid replacing \ in UNIX paths while replacing them on Windows
+                String resourcePathWithDots = resourceName.replace('/', '.').replace(File.separatorChar, '.');
                 Matcher matcher = classPattern.matcher(resourcePathWithDots);
                 if (matcher.matches()) {
                     return classLoader.loadClass(matcher.group(1));
