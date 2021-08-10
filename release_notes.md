@@ -1,5 +1,8 @@
 Release Notes
 =======
+## 2.8.1
+* minor bug regarding wrong class resolving under non-unix systems fixed
+
 ## 2.8.0
 * tests now run with newer spring boot version (in order to test newer mongodb versions (driver and db))
 * tests require a docker setup since a MongoDB 4.1 [TestContainer](https://www.testcontainers.org/) spins up  

@@ -44,7 +44,7 @@ public class TypesModel {
         this.ignoreAnnotations = ignoreAnnotations != null ? ignoreAnnotations : Collections.emptySet();
         this.ignoreTypesMatchingClassNamePredicates = ignoreTypesMatchingClassNamePredicates != null ? ignoreTypesMatchingClassNamePredicates : Collections.emptySet();
         this.ignoreClasses = ignoreClasses != null ? ignoreClasses : Collections.emptySet();
-        this.classResolver = specializedClassResolver != null ? specializedClassResolver : getClassResolver();
+        this.classResolver = specializedClassResolver != null ? specializedClassResolver : getDefaultClassResolver();
 
         // first index all direct classes
         if (classes != null) {
@@ -90,7 +90,7 @@ public class TypesModel {
      *
      * @return an indexer or throws {@link IllegalStateException}
      */
-    private PredefinedClassResolver getClassResolver() {
+    static PredefinedClassResolver getDefaultClassResolver() {
         // now depending on library, index packages
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         try {
