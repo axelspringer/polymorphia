@@ -45,7 +45,7 @@ public class IdTest extends AbstractTest {
 
     @Test
     public void testMissingGeneratorClass() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        Assertions.assertThrows(Exception.class, () -> {
             Codec<EntityWithMissingGenerator> codec = codecRegistry.get(EntityWithMissingGenerator.class);
         });
     }

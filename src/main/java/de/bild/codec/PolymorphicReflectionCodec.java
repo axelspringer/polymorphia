@@ -34,55 +34,61 @@ public class PolymorphicReflectionCodec<T> implements TypeCodec<T> {
         boolean isAnyCodecCollectible = false;
         List<Bson> allDiscriminatorKeyValueFilters = new ArrayList<>();
         for (Type validType : validTypes) {
-            Class<T> clazz = AbstractTypeCodec.extractClass(validType);
-            // ignore interfaces and also ignore abstract classes
-            if (!clazz.isInterface() && ! Modifier.isAbstract(clazz.getModifiers())) {
-                String discriminatorKey = getDiscriminatorKeyForClass(clazz);
-                boolean isFallBack = clazz.getDeclaredAnnotation(DiscriminatorFallback.class) != null;
+            try {
+                Class<T> clazz = AbstractTypeCodec.extractClass(validType);
+                // ignore interfaces and also ignore abstract classes
+                if (!clazz.isInterface() && ! Modifier.isAbstract(clazz.getModifiers())) {
+                    String discriminatorKey = getDiscriminatorKeyForClass(clazz);
+                    boolean isFallBack = clazz.getDeclaredAnnotation(DiscriminatorFallback.class) != null;
 
-                discriminatorKeys.putIfAbsent(clazz, discriminatorKey);
-                allDiscriminatorKeys.add(discriminatorKey);
+                    discriminatorKeys.putIfAbsent(clazz, discriminatorKey);
+                    allDiscriminatorKeys.add(discriminatorKey);
 
-                PolymorphicCodec codecFor = pojoContext.resolve(validType, typeCodecRegistry);
+                    PolymorphicCodec codecFor = pojoContext.resolve(validType, typeCodecRegistry);
 
-                if (isFallBack) {
-                    if (fallBackCodec != null) {
-                        LOGGER.error("It is not allowed to declare more han one class within hierarchy as fallback. {} found already {}", clazz, codecFor.getEncoderClass());
-                        throw new IllegalArgumentException("It is not allowed to declare more han one class within hierarchy as fallback." + clazz);
+                    if (isFallBack) {
+                        if (fallBackCodec != null) {
+                            LOGGER.error("It is not allowed to declare more han one class within hierarchy as fallback. {} found already {}", clazz, codecFor.getEncoderClass());
+                            throw new IllegalArgumentException("It is not allowed to declare more han one class within hierarchy as fallback." + clazz);
+                        } else {
+                            fallBackCodec = codecFor;
+                            LOGGER.debug("Found fallback discriminator at class {}", clazz);
+                        }
+                    }
+
+                    isAnyCodecCollectible |= codecFor.isCollectible();
+
+                    classToCodec.put(clazz, codecFor);
+
+                    Discriminator discriminatorAnnotation = clazz.getDeclaredAnnotation(Discriminator.class);
+                    String mainDiscriminator = clazz.getSimpleName();
+                    List<String> allDiscriminators = new ArrayList<>();
+                    if (discriminatorAnnotation != null) {
+                        if (discriminatorAnnotation.value() != null) {
+                            mainDiscriminator = discriminatorAnnotation.value();
+                        }
+                        allDiscriminators.add(mainDiscriminator);
+                        for (String alias : discriminatorAnnotation.aliases()) {
+                            allDiscriminators.add(alias);
+                        }
                     } else {
-                        fallBackCodec = codecFor;
-                        LOGGER.debug("Found fallback discriminator at class {}", clazz);
+                        allDiscriminators.add(mainDiscriminator);
                     }
+
+                    for (String discriminator : allDiscriminators) {
+                        allDiscriminatorKeyValueFilters.add(Filters.eq(discriminatorKey, discriminator));
+                        PolymorphicCodec<T> registeredCodec = this.discriminatorToCodec.putIfAbsent(discriminator, codecFor);
+                        if (registeredCodec != null) {
+                            LOGGER.warn("Cannot register multiple classes ({}, {}) for the same discriminator {} ", clazz, registeredCodec.getEncoderClass(), discriminator);
+                            throw new IllegalArgumentException("Cannot register multiple classes (" + clazz + ", " + registeredCodec.getEncoderClass() + ") for the same discriminator " + discriminator);
+                        }
+                    }
+                    mainDiscriminators.put(clazz, mainDiscriminator);
                 }
-
-                isAnyCodecCollectible |= codecFor.isCollectible();
-
-                classToCodec.put(clazz, codecFor);
-
-                Discriminator discriminatorAnnotation = clazz.getDeclaredAnnotation(Discriminator.class);
-                String mainDiscriminator = clazz.getSimpleName();
-                List<String> allDiscriminators = new ArrayList<>();
-                if (discriminatorAnnotation != null) {
-                    if (discriminatorAnnotation.value() != null) {
-                        mainDiscriminator = discriminatorAnnotation.value();
-                    }
-                    allDiscriminators.add(mainDiscriminator);
-                    for (String alias : discriminatorAnnotation.aliases()) {
-                        allDiscriminators.add(alias);
-                    }
-                } else {
-                    allDiscriminators.add(mainDiscriminator);
-                }
-
-                for (String discriminator : allDiscriminators) {
-                    allDiscriminatorKeyValueFilters.add(Filters.eq(discriminatorKey, discriminator));
-                    PolymorphicCodec<T> registeredCodec = this.discriminatorToCodec.putIfAbsent(discriminator, codecFor);
-                    if (registeredCodec != null) {
-                        LOGGER.warn("Cannot register multiple classes ({}, {}) for the same discriminator {} ", clazz, registeredCodec.getEncoderClass(), discriminator);
-                        throw new IllegalArgumentException("Cannot register multiple classes (" + clazz + ", " + registeredCodec.getEncoderClass() + ") for the same discriminator " + discriminator);
-                    }
-                }
-                mainDiscriminators.put(clazz, mainDiscriminator);
+            } catch (IllegalArgumentException e) {
+                throw e;
+            } catch (Exception any) {
+                LOGGER.warn("Could not create codec for type {} reason {}", type, any.getMessage());
             }
         }
 

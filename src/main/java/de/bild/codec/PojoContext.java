@@ -12,7 +12,6 @@ import org.bson.Document;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
-import org.bson.codecs.IterableCodec;
 import org.bson.codecs.configuration.CodecConfigurationException;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
@@ -323,18 +322,23 @@ public class PojoContext {
             /*
              * now try pojo codec with potentially polymorphic structures
              */
-            Set<Type> validTypesForType = typesModel.getAssignableTypesWithinClassHierarchy(type);
+            try {
+                Set<Type> validTypesForType = typesModel.getAssignableTypesWithinClassHierarchy(type);
 
-            if (validTypesForType == null || validTypesForType.isEmpty()) {
-                LOGGER.debug("Could not find codec for type {}. Maybe another codec or codec provider is able to handle te class?!", type);
+                if (validTypesForType == null || validTypesForType.isEmpty()) {
+                    LOGGER.debug("Could not find codec for type {}. Maybe another codec or codec provider is able to handle te class?!", type);
+                    return null;
+                } else if (validTypesForType.size() > 1 || isPolymorphic(type, validTypesForType.iterator().next())) {
+                    LOGGER.debug("Creating polymorphic codec for type {} with valid types {}", type, validTypesForType);
+                    return new PolymorphicReflectionCodec<>(type, validTypesForType, typeCodecRegistry, this);
+                } else {
+                    LOGGER.debug("Creating simple reflection based codec for type {} (generic type {}) as only one concrete implementation known.", type, validTypesForType);
+                    Type singleType = validTypesForType.iterator().next();
+                    codec = resolve(singleType, typeCodecRegistry);
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Could not create codec for type {} reason {}", type, e.getMessage());
                 return null;
-            } else if (validTypesForType.size() > 1 || isPolymorphic(type, validTypesForType.iterator().next())) {
-                LOGGER.debug("Creating polymorphic codec for type {} with valid types {}", type, validTypesForType);
-                return new PolymorphicReflectionCodec<>(type, validTypesForType, typeCodecRegistry, this);
-            } else {
-                LOGGER.debug("Creating simple reflection based codec for type {} (generic type {}) as only one concrete implementation known.", type, validTypesForType);
-                Type singleType = validTypesForType.iterator().next();
-                codec = resolve(singleType, typeCodecRegistry);
             }
         }
         return codec;

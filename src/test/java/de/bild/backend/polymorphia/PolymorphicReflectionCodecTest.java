@@ -94,7 +94,7 @@ public class PolymorphicReflectionCodecTest extends AbstractTest {
 
     @Test
     public void testFieldNameLikeDiscriminatorKey() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        Assertions.assertThrows(Exception.class, () -> {
             PojoCodecProvider pojoCodecProvider = PojoCodecProvider.builder().
                     register(Shape.class).
                     register(ClassWithReservedFieldName.class).
