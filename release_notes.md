@@ -1,5 +1,9 @@
 Release Notes
 =======
+## 2.8.2
+* set scope for dependency lombok to test
+* enable to run with JDK 17 or above
+
 ## 2.8.1
 * minor bug regarding wrong class resolving under non-unix systems fixed
 
