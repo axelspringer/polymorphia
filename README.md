@@ -34,7 +34,7 @@ Release notes are available [release_notes.md](release_notes.md).
 <dependency>
     <groupId>de.bild.backend</groupId>
     <artifactId>polymorphia</artifactId>
-    <version>2.8.1</version>
+    <version>2.8.2</version>
 </dependency>
 ```
 Make sure you include a suitable mongo-java-driver version in your project.
